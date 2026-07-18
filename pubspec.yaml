@@ -1,0 +1,83 @@
+name: eam_platform
+description: Enterprise Asset Management Platform for Medical Equipment
+
+publish_to: 'none'
+version: 1.0.2+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.3.0 # Or the latest version available
+  # Supabase
+  supabase_flutter: ^2.5.6
+
+  # State Management
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.5
+
+  # Navigation
+  go_router: ^17.3.0
+  flutter_dotenv: ^5.2.1
+  # UI & Icons
+  google_fonts: ^8.1.0
+  flutter_svg: ^2.0.10+1
+
+  # PDF Viewer
+  syncfusion_flutter_pdfviewer: ^34.1.29
+
+  # URL Launcher (for invoices)
+  url_launcher: ^6.3.2
+
+  # File picker (PDF receipt upload)
+  file_picker: ^12.0.0-beta.7
+
+  # Utils
+  intl: ^0.20.3
+
+  # Responsive Layout
+  shimmer: ^3.0.0
+
+  # Local Secure Storage
+  flutter_secure_storage: ^10.3.1
+  package_info_plus: ^10.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  msix: ^3.18.0
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: false
+  image_path: "assets/icons/client_manager.png"
+  min_sdk_android: 21
+  windows:
+    generate: true
+    image_path: "assets/icons/client_manager.png"
+    icon_size: 256 # Higher resolution icon size for modern Windows displays
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - .env
+  fonts:
+    - family: Anta
+      fonts:
+        - asset: assets/fonts/Anta-Regular.ttf
+
+msix_config:
+  display_name: "DME Client Manager"
+  publisher_display_name: "Md Mehedi Hasan"
+  identity_name: "com.dmebd.clientmanager"
+  msix_version: "1.0.0.3"
+  logo_path: "assets/icons/window_logo.png" # Must be a high-res .png file (400x400px+)
+  capabilities: 'internetClient'
+  publisher: 'CN=Md Mehedi Hasan, O=DME, C=BD' # Required for generating local installs
