@@ -55,6 +55,9 @@ class _AddMachinePageState extends State<AddMachinePage> {
   // Array tracking active assigned engineer primary database keys
   List<String> selectedEngineerIds = [];
 
+  // Toggle state to conditionally reveal PC hardware fields
+  bool _showPcConfig = false;
+
   // Workstation Configuration Controllers
   late final _pcCpuCtrl = TextEditingController(text: widget.existingMachine?.pcCpu ?? '');
   late final _pcRamCtrl = TextEditingController(text: widget.existingMachine?.pcRam ?? '');
@@ -104,13 +107,11 @@ class _AddMachinePageState extends State<AddMachinePage> {
   @override
   void initState() {
     super.initState();
-   context.read<EngineersBloc>().add(EngineersFetchAll());
+    context.read<EngineersBloc>().add(EngineersFetchAll());
     if (widget.existingMachine != null) {
       _machineType = widget.existingMachine!.machineType.label;
       _brand = widget.existingMachine!.brand;
       
-      // Load selected engineers from the real many-to-many join
-      // (existingMachine.engineers), not the legacy single-value field.
       selectedEngineerIds = widget.existingMachine!.engineers
           .map(_engineerIdOf)
           .where((id) => id.isNotEmpty)
@@ -119,11 +120,19 @@ class _AddMachinePageState extends State<AddMachinePage> {
       _pcLanPorts = widget.existingMachine!.pcLanPorts?.toString() ?? '1';
       _fpdLicenseType = widget.existingMachine!.fpdLicenseType ?? 'Hardware/Dongle Key';
 
+      // Auto-enable PC configuration layout if data already exists during an edit view
+      if (widget.existingMachine!.pcCpu != null ||
+          widget.existingMachine!.pcRam != null ||
+          widget.existingMachine!.pcStorage != null ||
+          widget.existingMachine!.pcOs != null ||
+          widget.existingMachine!.pcMobo != null) {
+        _showPcConfig = true;
+      }
+
       for (final p in widget.existingMachine!.parts) {
         _parts.add(_PartRow(name: p.partName, serial: p.serialNumber));
       }
       
-      // Populate network addresses correctly
       for (final ip in widget.existingMachine!.assignedIps) {
         _ipCtrls.add(TextEditingController(text: ip));
       }
@@ -207,130 +216,127 @@ class _AddMachinePageState extends State<AddMachinePage> {
     setState(() => _parts.removeAt(i));
   }
 
-Future<void> _submit() async {
-  if (!_formKey.currentState!.validate()) return;
-  if (_machineType.isEmpty) {
-    AppFeedback.error(context, 'Please select a machine type.');
-    return;
-  }
-  if (_brand.isEmpty) {
-    AppFeedback.error(context, 'Please select a brand.');
-    return;
-  }
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_machineType.isEmpty) {
+      AppFeedback.error(context, 'Please select a machine type.');
+      return;
+    }
+    if (_brand.isEmpty) {
+      AppFeedback.error(context, 'Please select a brand.');
+      return;
+    }
 
-  final chosenEngineerId = selectedEngineerIds.isNotEmpty ? selectedEngineerIds.first : null;
+    final chosenEngineerId = selectedEngineerIds.isNotEmpty ? selectedEngineerIds.first : null;
 
-  setState(() => _saving = true);
+    setState(() => _saving = true);
 
-  try {
-    final repo = context.read<MachinesRepository>();
+    try {
+      final repo = context.read<MachinesRepository>();
 
-    final partsList = _parts
-        .where((p) => p.nameCtrl.text.trim().isNotEmpty)
-        .map((p) => MachinePart.draft(
-              partName: p.nameCtrl.text.trim(),
-              serialNumber: p.serialCtrl.text.trim(),
-            ))
-        .toList();
+      final partsList = _parts
+          .where((p) => p.nameCtrl.text.trim().isNotEmpty)
+          .map((p) => MachinePart.draft(
+                partName: p.nameCtrl.text.trim(),
+                serialNumber: p.serialCtrl.text.trim(),
+              ))
+          .toList();
 
-    final Map<String, String> metaMap = {};
-    for (var entry in _customFields) {
-      final k = entry.key.text.trim();
-      final v = entry.value.text.trim();
-      if (k.isNotEmpty && v.isNotEmpty) {
-        metaMap[k] = v;
+      final Map<String, String> metaMap = {};
+      for (var entry in _customFields) {
+        final k = entry.key.text.trim();
+        final v = entry.value.text.trim();
+        if (k.isNotEmpty && v.isNotEmpty) {
+          metaMap[k] = v;
+        }
+      }
+
+      final List<String> assignedIpsList = _ipCtrls
+          .map((ctrl) => ctrl.text.trim())
+          .where((ip) => ip.isNotEmpty)
+          .toList();
+
+      final typeEnum = MachineType.fromString(_machineType);
+
+      final draft = InstalledMachine(
+        id: widget.existingMachine?.id ?? '',
+        hospitalId: widget.hospitalId,
+        machineType: typeEnum,
+        brand: _brand,
+        model: _modelCtrl.text.trim(),
+        serialNumber: _serialCtrl.text.trim().isEmpty ? null : _serialCtrl.text.trim(),
+        
+        installationEngineerId: chosenEngineerId,
+        installationEngineerName: null, 
+        
+        installationDate: _installDate,
+        warrantyPeriod: _warrantyMonths,
+        invoiceUrl: widget.existingMachine?.invoiceUrl,
+        createdAt: widget.existingMachine?.createdAt ?? DateTime.now(),
+        assignedIps: assignedIpsList,
+
+        // Clean field values if the configuration container was explicitly toggled off
+        pcCpu: _showPcConfig && _pcCpuCtrl.text.trim().isNotEmpty ? _pcCpuCtrl.text.trim() : null,
+        pcRam: _showPcConfig && _pcRamCtrl.text.trim().isNotEmpty ? _pcRamCtrl.text.trim() : null,
+        pcStorage: _showPcConfig && _pcStorageCtrl.text.trim().isNotEmpty ? _pcStorageCtrl.text.trim() : null,
+        pcOs: _showPcConfig && _pcOsCtrl.text.trim().isNotEmpty ? _pcOsCtrl.text.trim() : null,
+        pcMobo: _showPcConfig && _pcMoboCtrl.text.trim().isNotEmpty ? _pcMoboCtrl.text.trim() : null,
+        pcLanPorts: _showPcConfig && _pcLanPorts != null ? int.tryParse(_pcLanPorts!) : null,
+
+        printerAe: typeEnum == MachineType.printer && _printerAeCtrl.text.trim().isNotEmpty ? _printerAeCtrl.text.trim() : null,
+        printerIp1: typeEnum == MachineType.printer && _printerIp1Ctrl.text.trim().isNotEmpty ? _printerIp1Ctrl.text.trim() : null,
+        printerIp2: typeEnum == MachineType.printer && _printerIp2Ctrl.text.trim().isNotEmpty ? _printerIp2Ctrl.text.trim() : null,
+        printerPort: typeEnum == MachineType.printer && _printerPortCtrl.text.trim().isNotEmpty ? _printerPortCtrl.text.trim() : null,
+        printerPcVersion: typeEnum == MachineType.printer && _printerPcVerCtrl.text.trim().isNotEmpty ? _printerPcVerCtrl.text.trim() : null,
+        printerMbVersion: typeEnum == MachineType.printer && _printerMbVerCtrl.text.trim().isNotEmpty ? _printerMbVerCtrl.text.trim() : null,
+        printerImagerVersion: typeEnum == MachineType.printer && _printerImagerVerCtrl.text.trim().isNotEmpty ? _printerImagerVerCtrl.text.trim() : null,
+
+        xrayConsoleSl: typeEnum == MachineType.xRay && _xrayConsoleCtrl.text.trim().isNotEmpty ? _xrayConsoleCtrl.text.trim() : null,
+        xrayTubeSl: typeEnum == MachineType.xRay && _xrayTubeCtrl.text.trim().isNotEmpty ? _xrayTubeCtrl.text.trim() : null,
+        xrayGeneratorSl: typeEnum == MachineType.xRay && _xrayGeneratorCtrl.text.trim().isNotEmpty ? _xrayGeneratorCtrl.text.trim() : null,
+
+        fpdAcqId: typeEnum == MachineType.fpd && _fpdAcqIdCtrl.text.trim().isNotEmpty ? _fpdAcqIdCtrl.text.trim() : null,
+        fpdSoftware: typeEnum == MachineType.fpd && _fpdSoftwareCtrl.text.trim().isNotEmpty ? _fpdSoftwareCtrl.text.trim() : null,
+        fpdVersion: typeEnum == MachineType.fpd && _fpdVersionCtrl.text.trim().isNotEmpty ? _fpdVersionCtrl.text.trim() : null,
+        fpdModule: typeEnum == MachineType.fpd && _fpdModuleCtrl.text.trim().isNotEmpty ? _fpdModuleCtrl.text.trim() : null,
+        fpdLicense: typeEnum == MachineType.fpd && _fpdLicenseCtrl.text.trim().isNotEmpty ? _fpdLicenseCtrl.text.trim() : null,
+        fpdLicenseType: typeEnum == MachineType.fpd ? _fpdLicenseType : null,
+        fpdDongleSerial: typeEnum == MachineType.fpd && _fpdDongleSerialCtrl.text.trim().isNotEmpty ? _fpdDongleSerialCtrl.text.trim() : null,
+
+        customMetadata: metaMap,
+      );
+
+      InstalledMachine saved;
+      if (_isEdit) {
+        saved = await repo.updateMachineWithParts(draft, partsList, selectedEngineerIds);
+      } else {
+        saved = await repo.createMachineWithParts(draft, partsList, selectedEngineerIds);
+      }
+
+      if (_pdfBytes != null && _pdfFileName != null) {
+        final path = await repo.uploadInvoice(
+          machineId: saved.id,
+          fileBytes: _pdfBytes!,
+          fileName: _pdfFileName!,
+        );
+        await repo.updateMachineWithParts(
+          saved.copyWith(invoiceUrl: path),
+          saved.parts,
+          selectedEngineerIds,
+        );
+      }
+
+      if (mounted) {
+        context.read<MachinesBloc>().add(MachinesFetchRequested(widget.hospitalId));
+        Navigator.of(context).pop(true);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.error(context, e.toString());
+        setState(() => _saving = false);
       }
     }
-
-    final List<String> assignedIpsList = _ipCtrls
-        .map((ctrl) => ctrl.text.trim())
-        .where((ip) => ip.isNotEmpty)
-        .toList();
-
-    final typeEnum = MachineType.fromString(_machineType);
-
-    final draft = InstalledMachine(
-      id: widget.existingMachine?.id ?? '',
-      hospitalId: widget.hospitalId,
-      machineType: typeEnum,
-      brand: _brand,
-      model: _modelCtrl.text.trim(),
-      serialNumber: _serialCtrl.text.trim().isEmpty ? null : _serialCtrl.text.trim(),
-      
-      // Legacy single-value mirror of the first selected engineer.
-      // The actual many-to-many relationship is persisted separately via
-      // MachinesRepository.updateMachineEngineers() / the machine_engineers
-      // junction table (see createMachineWithParts/updateMachineWithParts below).
-      installationEngineerId: chosenEngineerId,
-      installationEngineerName: null, 
-      
-      installationDate: _installDate,
-      warrantyPeriod: _warrantyMonths,
-      invoiceUrl: widget.existingMachine?.invoiceUrl,
-      createdAt: widget.existingMachine?.createdAt ?? DateTime.now(),
-      assignedIps: assignedIpsList,
-
-      pcCpu: _pcCpuCtrl.text.trim().isEmpty ? null : _pcCpuCtrl.text.trim(),
-      pcRam: _pcRamCtrl.text.trim().isEmpty ? null : _pcRamCtrl.text.trim(),
-      pcStorage: _pcStorageCtrl.text.trim().isEmpty ? null : _pcStorageCtrl.text.trim(),
-      pcOs: _pcOsCtrl.text.trim().isEmpty ? null : _pcOsCtrl.text.trim(),
-      pcMobo: _pcMoboCtrl.text.trim().isEmpty ? null : _pcMoboCtrl.text.trim(),
-      pcLanPorts: _pcLanPorts != null ? int.tryParse(_pcLanPorts!) : null,
-
-      printerAe: typeEnum == MachineType.printer && _printerAeCtrl.text.trim().isNotEmpty ? _printerAeCtrl.text.trim() : null,
-      printerIp1: typeEnum == MachineType.printer && _printerIp1Ctrl.text.trim().isNotEmpty ? _printerIp1Ctrl.text.trim() : null,
-      printerIp2: typeEnum == MachineType.printer && _printerIp2Ctrl.text.trim().isNotEmpty ? _printerIp2Ctrl.text.trim() : null,
-      printerPort: typeEnum == MachineType.printer && _printerPortCtrl.text.trim().isNotEmpty ? _printerPortCtrl.text.trim() : null,
-      printerPcVersion: typeEnum == MachineType.printer && _printerPcVerCtrl.text.trim().isNotEmpty ? _printerPcVerCtrl.text.trim() : null,
-      printerMbVersion: typeEnum == MachineType.printer && _printerMbVerCtrl.text.trim().isNotEmpty ? _printerMbVerCtrl.text.trim() : null,
-      printerImagerVersion: typeEnum == MachineType.printer && _printerImagerVerCtrl.text.trim().isNotEmpty ? _printerImagerVerCtrl.text.trim() : null,
-
-      xrayConsoleSl: typeEnum == MachineType.xRay && _xrayConsoleCtrl.text.trim().isNotEmpty ? _xrayConsoleCtrl.text.trim() : null,
-      xrayTubeSl: typeEnum == MachineType.xRay && _xrayTubeCtrl.text.trim().isNotEmpty ? _xrayTubeCtrl.text.trim() : null,
-      xrayGeneratorSl: typeEnum == MachineType.xRay && _xrayGeneratorCtrl.text.trim().isNotEmpty ? _xrayGeneratorCtrl.text.trim() : null,
-
-      fpdAcqId: typeEnum == MachineType.fpd && _fpdAcqIdCtrl.text.trim().isNotEmpty ? _fpdAcqIdCtrl.text.trim() : null,
-      fpdSoftware: typeEnum == MachineType.fpd && _fpdSoftwareCtrl.text.trim().isNotEmpty ? _fpdSoftwareCtrl.text.trim() : null,
-      fpdVersion: typeEnum == MachineType.fpd && _fpdVersionCtrl.text.trim().isNotEmpty ? _fpdVersionCtrl.text.trim() : null,
-      fpdModule: typeEnum == MachineType.fpd && _fpdModuleCtrl.text.trim().isNotEmpty ? _fpdModuleCtrl.text.trim() : null,
-      fpdLicense: typeEnum == MachineType.fpd && _fpdLicenseCtrl.text.trim().isNotEmpty ? _fpdLicenseCtrl.text.trim() : null,
-      fpdLicenseType: typeEnum == MachineType.fpd ? _fpdLicenseType : null,
-      fpdDongleSerial: typeEnum == MachineType.fpd && _fpdDongleSerialCtrl.text.trim().isNotEmpty ? _fpdDongleSerialCtrl.text.trim() : null,
-
-      customMetadata: metaMap,
-    );
-
-    InstalledMachine saved;
-    if (_isEdit) {
-      saved = await repo.updateMachineWithParts(draft, partsList, selectedEngineerIds);
-    } else {
-      saved = await repo.createMachineWithParts(draft, partsList, selectedEngineerIds);
-    }
-
-    if (_pdfBytes != null && _pdfFileName != null) {
-      final path = await repo.uploadInvoice(
-        machineId: saved.id,
-        fileBytes: _pdfBytes!,
-        fileName: _pdfFileName!,
-      );
-      await repo.updateMachineWithParts(
-        saved.copyWith(invoiceUrl: path),
-        saved.parts,
-        selectedEngineerIds,
-      );
-    }
-
-    if (mounted) {
-      context.read<MachinesBloc>().add(MachinesFetchRequested(widget.hospitalId));
-      Navigator.of(context).pop(true);
-    }
-  } catch (e) {
-    if (mounted) {
-      AppFeedback.error(context, e.toString());
-      setState(() => _saving = false);
-    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -446,142 +452,129 @@ Future<void> _submit() async {
                           ),
                         ],
 
-                        // FIXED: Connected to real backend dynamic state via EngineersBloc
-                _Field(
-  label: 'Assigned Installation Engineers',
-  child: Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(AppSpacing.sm),
-    decoration: BoxDecoration(
-      color: AppColors.surface2,
-      borderRadius: AppRadius.inputField,
-      border: Border.all(color: AppColors.surface3),
-    ),
-    child: BlocBuilder<EngineersBloc, EngineersState>(
-      builder: (context, state) {
-        // 1. Declare local tracking variables
-        List<Engineer> engineersList = [];
-        bool isLoadedState = false;
+                        _Field(
+                          label: 'Assigned Installation Engineers',
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(AppSpacing.sm),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface2,
+                              borderRadius: AppRadius.inputField,
+                              border: Border.all(color: AppColors.surface3),
+                            ),
+                            child: BlocBuilder<EngineersBloc, EngineersState>(
+                              builder: (context, state) {
+                                List<Engineer> engineersList = [];
+                                bool isLoadedState = false;
 
-        // 2. Extract engineer lists based on the matched loaded states
-        if (state is EngineersLoaded) {
-          engineersList = state.engineers;
-          isLoadedState = true;
-        } else if (state is EngineersActionSuccess) {
-          engineersList = state.engineers;
-          isLoadedState = true;
-        }
+                                if (state is EngineersLoaded) {
+                                  engineersList = state.engineers;
+                                  isLoadedState = true;
+                                } else if (state is EngineersActionSuccess) {
+                                  engineersList = state.engineers;
+                                  isLoadedState = true;
+                                }
 
-        // 3. If data is loaded, render the selectable layout list
-        if (isLoadedState) {
-          if (engineersList.isEmpty) {
-            return Text(
-              'No engineers found', 
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)
-            );
-          }
+                                if (isLoadedState) {
+                                  if (engineersList.isEmpty) {
+                                    return Text(
+                                      'No engineers found', 
+                                      style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)
+                                    );
+                                  }
 
-   return Wrap(
-  spacing: 8.0,
-  runSpacing: 4.0,
-  children: engineersList.map((dynamic engineer) {
-    final String engId = _engineerIdOf(engineer);
-    final String engName = (engineer?.name ?? 'Unknown').toString();
-    
-    // Check if the engineer is available from the model properties
-    final bool isAvailable = engineer?.isAvailable ?? true;
-    
-    if (engId.isEmpty) return const SizedBox.shrink();
+                                  return Wrap(
+                                    spacing: 8.0,
+                                    runSpacing: 4.0,
+                                    children: engineersList.map((dynamic engineer) {
+                                      final String engId = _engineerIdOf(engineer);
+                                      final String engName = (engineer?.name ?? 'Unknown').toString();
+                                      final bool isAvailable = engineer?.isAvailable ?? true;
+                                      
+                                      if (engId.isEmpty) return const SizedBox.shrink();
 
-    final isSelected = selectedEngineerIds.contains(engId);
-    return FilterChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(engName),
-          if (!isAvailable) ...[
-            const SizedBox(width: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade800,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'ASSIGNED',
-                style: TextStyle(
-                  fontSize: 8, 
-                  fontWeight: FontWeight.bold, 
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-      selected: isSelected,
-      selectedColor: AppColors.accent.withOpacity(0.15),
-      checkmarkColor: AppColors.accent,
-      
-      // Customize colors for unavailable (assigned) engineers
-      disabledColor: Colors.orange.withOpacity(0.08),
-      side: BorderSide(
-        color: isAvailable 
-            ? (isSelected ? AppColors.accent : AppColors.surface3) 
-            : Colors.orange.shade400,
-        width: 1,
-      ),
-      
-      labelStyle: theme.textTheme.bodyMedium?.copyWith(
-        color: isAvailable 
-            ? (isSelected ? AppColors.accent : AppColors.textPrimary)
-            : Colors.orange.shade300,
-        fontWeight: isAvailable ? FontWeight.normal : FontWeight.w500,
-      ),
-      
-      // Passing null to onSelected disables tap interactions on this chip
-      onSelected: isAvailable
-          ? (bool checked) {
-              setState(() {
-                if (checked) {
-                  selectedEngineerIds.add(engId);
-                } else {
-                  selectedEngineerIds.remove(engId);
-                }
-              });
-            }
-          : null,
-    );
-  }).toList(),
-);
-        }
+                                      final isSelected = selectedEngineerIds.contains(engId);
+                                      return FilterChip(
+                                        label: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(engName),
+                                            if (!isAvailable) ...[
+                                              const SizedBox(width: 4),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.orange.shade800,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: const Text(
+                                                  'ASSIGNED',
+                                                  style: TextStyle(
+                                                    fontSize: 8, 
+                                                    fontWeight: FontWeight.bold, 
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        selected: isSelected,
+                                        selectedColor: AppColors.accent.withOpacity(0.15),
+                                        checkmarkColor: AppColors.accent,
+                                        disabledColor: Colors.orange.withOpacity(0.08),
+                                        side: BorderSide(
+                                          color: isAvailable 
+                                              ? (isSelected ? AppColors.accent : AppColors.surface3) 
+                                              : Colors.orange.shade400,
+                                          width: 1,
+                                        ),
+                                        labelStyle: theme.textTheme.bodyMedium?.copyWith(
+                                          color: isAvailable 
+                                              ? (isSelected ? AppColors.accent : AppColors.textPrimary)
+                                              : Colors.orange.shade300,
+                                          fontWeight: isAvailable ? FontWeight.normal : FontWeight.w500,
+                                        ),
+                                        onSelected: isAvailable
+                                            ? (bool checked) {
+                                                setState(() {
+                                                  if (checked) {
+                                                    selectedEngineerIds.add(engId);
+                                                  } else {
+                                                    selectedEngineerIds.remove(engId);
+                                                  }
+                                                });
+                                              }
+                                            : null,
+                                      );
+                                    }).toList(),
+                                  );
+                                }
 
-        // 4. Show error indicator if the request completely falls through
-        if (state is EngineersError) {
-          return Row(
-            children: [
-              const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Failed to load engineers: ${state.message}', 
-                  style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.error),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          );
-        }
-        
-        // 5. Default loading state indicator
-        return const Padding(
-          padding: EdgeInsets.all(8.0),
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        );
-      },
-    ),
-  ),
-),
+                                if (state is EngineersError) {
+                                  return Row(
+                                    children: [
+                                      const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 16),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Failed to load engineers: ${state.message}', 
+                                          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.error),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }
+                                
+                                return const Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
 
                         if (isMobile) ...[
                           buildDateField(),
@@ -603,64 +596,93 @@ Future<void> _submit() async {
                   const SizedBox(height: AppSpacing.lg),
                   _buildConditionalTechnicalFields(isMobile),
 
+                  // PC Configuration Header and Toggle
                   _SectionTitle('PC Configuration (Optional)'),
-                  const SizedBox(height: AppSpacing.md),
-                  _FormCard(
-                    children: [
-                      if (isMobile) ...[
-                        _Field(label: 'CPU', child: TextFormField(controller: _pcCpuCtrl, decoration: const InputDecoration(hintText: 'e.g. Core i7'))),
-                        _Field(label: 'RAM', child: TextFormField(controller: _pcRamCtrl, decoration: const InputDecoration(hintText: 'e.g. 16GB'))),
-                        _Field(label: 'Storage', child: TextFormField(controller: _pcStorageCtrl, decoration: const InputDecoration(hintText: 'e.g. 512GB SSD'))),
-                        _Field(label: 'Operating System', child: TextFormField(controller: _pcOsCtrl, decoration: const InputDecoration(hintText: 'e.g. Windows 11 Pro'))),
-                        _Field(label: 'Motherboard', child: TextFormField(controller: _pcMoboCtrl, decoration: const InputDecoration(hintText: 'e.g. Asus Prime H610'))),
-                        _Field(
-                          label: 'Number of LAN ports',
-                          child: DropdownButtonFormField<String>(
-                            value: _pcLanPorts,
-                            isExpanded: true,
-                            dropdownColor: AppColors.surface2,
-                            items: ['1', '2', '3', '4'].map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
-                            onChanged: (v) => setState(() => _pcLanPorts = v),
-                          ),
-                        ),
-                      ] else ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _Field(label: 'CPU', child: TextFormField(controller: _pcCpuCtrl, decoration: const InputDecoration(hintText: 'e.g. Core i7')))),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(child: _Field(label: 'RAM', child: TextFormField(controller: _pcRamCtrl, decoration: const InputDecoration(hintText: 'e.g. 16GB')))),
-                          ],
-                        ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _Field(label: 'Storage', child: TextFormField(controller: _pcStorageCtrl, decoration: const InputDecoration(hintText: 'e.g. 512GB SSD')))),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(child: _Field(label: 'Operating System', child: TextFormField(controller: _pcOsCtrl, decoration: const InputDecoration(hintText: 'e.g. Windows 11 Pro')))),
-                          ],
-                        ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _Field(label: 'Motherboard', child: TextFormField(controller: _pcMoboCtrl, decoration: const InputDecoration(hintText: 'e.g. Asus Prime H610')))),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: _Field(
-                                label: 'Number of LAN ports',
-                                child: DropdownButtonFormField<String>(
-                                  value: _pcLanPorts,
-                                  isExpanded: true,
-                                  dropdownColor: AppColors.surface2,
-                                  items: ['1', '2', '3', '4'].map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
-                                  onChanged: (v) => setState(() => _pcLanPorts = v),
-                                ),
-                              ),
+                  const SizedBox(height: AppSpacing.xs),
+                  
+                  // NEW: Toggle visibility configuration setting switch
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Include Workstation Details',
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Text(
+                      'Turn on to append internal PC specs and hardware details',
+                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+                    ),
+                    activeColor: AppColors.accent,
+                    value: _showPcConfig,
+                    onChanged: (bool value) => setState(() => _showPcConfig = value),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  
+                  // Animated container conditionally rendering hardware card layout
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: !_showPcConfig 
+                        ? const SizedBox.shrink() 
+                        : Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.xs),
+                            child: _FormCard(
+                              children: [
+                                if (isMobile) ...[
+                                  _Field(label: 'CPU', child: TextFormField(controller: _pcCpuCtrl, decoration: const InputDecoration(hintText: 'e.g. Core i7'))),
+                                  _Field(label: 'RAM', child: TextFormField(controller: _pcRamCtrl, decoration: const InputDecoration(hintText: 'e.g. 16GB'))),
+                                  _Field(label: 'Storage', child: TextFormField(controller: _pcStorageCtrl, decoration: const InputDecoration(hintText: 'e.g. 512GB SSD'))),
+                                  _Field(label: 'Operating System', child: TextFormField(controller: _pcOsCtrl, decoration: const InputDecoration(hintText: 'e.g. Windows 11 Pro'))),
+                                  _Field(label: 'Motherboard', child: TextFormField(controller: _pcMoboCtrl, decoration: const InputDecoration(hintText: 'e.g. Asus Prime H610'))),
+                                  _Field(
+                                    label: 'Number of LAN ports',
+                                    child: DropdownButtonFormField<String>(
+                                      value: _pcLanPorts,
+                                      isExpanded: true,
+                                      dropdownColor: AppColors.surface2,
+                                      items: ['1', '2', '3', '4'].map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
+                                      onChanged: (v) => setState(() => _pcLanPorts = v),
+                                    ),
+                                  ),
+                                ] else ...[
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(child: _Field(label: 'CPU', child: TextFormField(controller: _pcCpuCtrl, decoration: const InputDecoration(hintText: 'e.g. Core i7')))),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(child: _Field(label: 'RAM', child: TextFormField(controller: _pcRamCtrl, decoration: const InputDecoration(hintText: 'e.g. 16GB')))),
+                                    ],
+                                  ),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(child: _Field(label: 'Storage', child: TextFormField(controller: _pcStorageCtrl, decoration: const InputDecoration(hintText: 'e.g. 512GB SSD')))),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(child: _Field(label: 'Operating System', child: TextFormField(controller: _pcOsCtrl, decoration: const InputDecoration(hintText: 'e.g. Windows 11 Pro')))),
+                                    ],
+                                  ),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(child: _Field(label: 'Motherboard', child: TextFormField(controller: _pcMoboCtrl, decoration: const InputDecoration(hintText: 'e.g. Asus Prime H610')))),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(
+                                        child: _Field(
+                                          label: 'Number of LAN ports',
+                                          child: DropdownButtonFormField<String>(
+                                            value: _pcLanPorts,
+                                            isExpanded: true,
+                                            dropdownColor: AppColors.surface2,
+                                            items: ['1', '2', '3', '4'].map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
+                                            onChanged: (v) => setState(() => _pcLanPorts = v),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
-                        ),
-                      ],
-                    ],
+                          ),
                   ),
 
                   const SizedBox(height: AppSpacing.lg),

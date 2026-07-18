@@ -2,77 +2,76 @@
 
 import 'package:equatable/equatable.dart';
 
-
-
-// lib/features/machines/data/models/engineer.dart
-
 class Engineer extends Equatable {
   final String id;
-  final String? machineId; 
+  final String? machineId;      // Optional; only used when assigning via a machine form
   final String name;
-  final String? phone; // Matches 'phone' column from your SQL
-  final bool isAvailable; // Matches 'is_available' boolean from your SQL
+  final String? designation;    // e.g. "Senior Field Engineer"
+  final String? phone;
+  final bool isAvailable;       // Available for assignment vs currently on duty
+  final bool isActive;          // Current employee vs left the company / inactive
   final DateTime createdAt;
 
   const Engineer({
     required this.id,
-    this.machineId,        
+    this.machineId,
     required this.name,
+    this.designation,
     this.phone,
-    required this.isAvailable,
+    this.isAvailable = true,
+    this.isActive = true,
     required this.createdAt,
   });
 
-  // UI Helper to easily display status as text
+  /// Compatibility label used by list views showing availability.
   String get statusLabel => isAvailable ? 'Available' : 'On Assignment';
 
-  @override
-  List<Object?> get props => [
-        id,
-        machineId,
-        name,
-        phone,
-        isAvailable,
-        createdAt,
-      ];
+  factory Engineer.fromJson(Map<String, dynamic> json) => Engineer(
+        id: json['id'] as String,
+        machineId: json['machine_id'] as String?,
+        name: json['name'] as String,
+        designation: json['designation'] as String?,
+        phone: json['phone'] as String?,
+        isAvailable: json['is_available'] as bool? ?? true,
+        isActive: json['is_active'] as bool? ?? true,
+        createdAt: json['created_at'] != null
+            ? DateTime.parse(json['created_at'] as String)
+            : DateTime.now(),
+      );
 
-  factory Engineer.fromJson(Map<String, dynamic> json) {
-    return Engineer(
-      id: json['id'] as String,
-      machineId: json['machine_id'] as String?, 
-      name: json['name'] as String,
-      phone: json['phone'] as String?,
-      isAvailable: json['is_available'] as bool? ?? true, // Safely fallback to true
-      createdAt: DateTime.parse(json['created_at'] as String),
-    );
-  }
+  Map<String, dynamic> toJson() => {
+        if (machineId != null) 'machine_id': machineId,
+        'name': name,
+        'designation': designation,
+        if (phone != null) 'phone': phone,
+        'is_available': isAvailable,
+        'is_active': isActive,
+      };
 
-  Map<String, dynamic> toJson() {
-    return {
-      if (id.isNotEmpty) 'id': id,
-      'machine_id': machineId, 
-      'name': name,
-      'phone': phone,
-      'is_available': isAvailable, // Directly sends a boolean to PostgreSQL
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
-
+  /// CopyWith helper function to safely modify instances inside the repositories
   Engineer copyWith({
     String? id,
     String? machineId,
     String? name,
+    String? designation,
     String? phone,
     bool? isAvailable,
+    bool? isActive,
     DateTime? createdAt,
   }) {
     return Engineer(
       id: id ?? this.id,
       machineId: machineId ?? this.machineId,
       name: name ?? this.name,
+      designation: designation ?? this.designation,
       phone: phone ?? this.phone,
       isAvailable: isAvailable ?? this.isAvailable,
+      isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
     );
   }
+
+  @override
+  List<Object?> get props =>
+      [id, machineId, name, designation, phone, isAvailable, isActive, createdAt];
 }

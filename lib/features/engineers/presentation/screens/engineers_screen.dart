@@ -305,8 +305,11 @@ class _EngineerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bool isAvailable = engineer.isAvailable;
+    final bool isActive = engineer.isActive;
 
-    return Container(
+    return Opacity(
+      opacity: isActive ? 1.0 : 0.55,
+      child: Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface1,
@@ -350,9 +353,29 @@ class _EngineerCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    _StatusBadge(isAvailable: isAvailable),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!isActive) ...[
+                          const _InactiveBadge(),
+                          const SizedBox(width: AppSpacing.xs),
+                        ],
+                        _StatusBadge(isAvailable: isAvailable),
+                      ],
+                    ),
                   ],
                 ),
+                if (engineer.designation != null && engineer.designation!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    engineer.designation!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(
                   engineer.phone ?? 'No contact listed',
@@ -391,6 +414,33 @@ class _EngineerCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+      ),
+    );
+  }
+}
+
+// ── Supporting Inactive Badge Widget ────────────────────────────────────────
+
+class _InactiveBadge extends StatelessWidget {
+  const _InactiveBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.surface3,
+        borderRadius: AppRadius.chip,
+        border: Border.all(color: AppColors.textTertiary),
+      ),
+      child: Text(
+        'INACTIVE',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.textTertiary,
+          letterSpacing: 0.5,
+          fontSize: 9,
+        ),
       ),
     );
   }

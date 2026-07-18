@@ -48,12 +48,16 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
   final _formKey   = GlobalKey<FormState>();
   bool _saving     = false;
   late final _nameCtrl  = TextEditingController(text: widget.engineer?.name ?? '');
+  late final _designationCtrl =
+      TextEditingController(text: widget.engineer?.designation ?? '');
   late final _phoneCtrl = TextEditingController(text: widget.engineer?.phone ?? '');
   late bool _isAvailable = widget.engineer?.isAvailable ?? true;
+  late bool _isActive = widget.engineer?.isActive ?? true;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _designationCtrl.dispose();
     _phoneCtrl.dispose();
     super.dispose();
   }
@@ -70,8 +74,12 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
         id: widget.engineer?.id ?? '',
         machineId: widget.machineId,
         name: _nameCtrl.text.trim(),
+        designation: _designationCtrl.text.trim().isEmpty
+            ? null
+            : _designationCtrl.text.trim(),
         phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
         isAvailable: _isAvailable,
+        isActive: _isActive,
         createdAt: widget.engineer?.createdAt ?? DateTime.now(),
       );
 
@@ -149,11 +157,27 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
               const SizedBox(height: AppSpacing.xs),
               TextFormField(
                 controller: _nameCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: AppColors.textPrimary),
                 decoration:
                     const InputDecoration(hintText: 'e.g. Rakib Hasan'),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // Designation
+              Text('DESIGNATION',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    color: AppColors.textTertiary,
+                  )),
+              const SizedBox(height: AppSpacing.xs),
+              TextFormField(
+                controller: _designationCtrl,
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  hintText: 'e.g. Senior Field Service Engineer',
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
 
@@ -167,7 +191,7 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
               TextFormField(
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   hintText: 'e.g. +880 1XXXXXXXXX',
                 ),
@@ -185,7 +209,7 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
               SwitchListTile(
                 title: Text(
                   _isAvailable ? 'Available for assignment' : 'Currently on duty',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
                 ),
                 subtitle: Text(
                   _isAvailable ? 'Can be immediately assigned' : 'Occupied with setup/support',
@@ -200,6 +224,39 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
                 onChanged: (bool value) {
                   setState(() {
                     _isAvailable = value;
+                  });
+                },
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Employment Status Toggle (Active employee / Left the company)
+              Text('EMPLOYMENT STATUS',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    color: AppColors.textTertiary,
+                  )),
+              const SizedBox(height: AppSpacing.xs),
+
+              SwitchListTile(
+                title: Text(
+                  _isActive ? 'Active employee' : 'Left the company / Inactive',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+                ),
+                subtitle: Text(
+                  _isActive
+                      ? 'Shows up in engineer selection lists'
+                      : 'Hidden from new assignments, kept for records',
+                  style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+                ),
+                value: _isActive,
+                activeColor: Colors.green,
+                activeTrackColor: Colors.green.withOpacity(0.3),
+                inactiveThumbColor: AppColors.textTertiary,
+                inactiveTrackColor: AppColors.surface3,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (bool value) {
+                  setState(() {
+                    _isActive = value;
                   });
                 },
               ),

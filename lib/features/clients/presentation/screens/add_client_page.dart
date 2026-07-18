@@ -96,11 +96,13 @@ class _AddClientViewState extends State<_AddClientView> {
   late final _machineSerialCtrl = TextEditingController();
 
   // Installation engineers (multi-select).
-  // Stores real engineer IDs from Supabase, populated via EngineersBloc.
   List<String> _selectedEngineers = [];
 
   DateTime _installDate = DateTime.now();
   int _warrantyMonths = 24;
+
+  // Toggle state to conditionally reveal PC hardware fields
+  bool _showPcConfig = false;
 
   // PC Config Fields
   late final _pcCpuCtrl = TextEditingController();
@@ -261,7 +263,6 @@ class _AddClientViewState extends State<_AddClientView> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validate machine section if toggled on
     if (_addMachine && !_isEdit) {
       if (_machineType.isEmpty) {
         AppFeedback.error(context, 'Please select a machine type.');
@@ -279,7 +280,6 @@ class _AddClientViewState extends State<_AddClientView> {
       final clientsRepo = context.read<ClientsRepository>();
       final machinesRepo = context.read<MachinesRepository>();
 
-      // 1. Save/update client
       final draft = HospitalClient(
         id: widget.existingClient?.id ?? '',
         name: _nameCtrl.text.trim(),
@@ -301,9 +301,7 @@ class _AddClientViewState extends State<_AddClientView> {
         saved = await clientsRepo.createClient(draft);
       }
 
-      // 2. Save machine if toggled (new client only)
       if (_addMachine && !_isEdit) {
-        // Build parts list
         final partsList = _parts
             .where((p) => p.nameCtrl.text.trim().isNotEmpty)
             .map((p) => MachinePart.draft(
@@ -323,35 +321,28 @@ class _AddClientViewState extends State<_AddClientView> {
           serialNumber: _machineSerialCtrl.text.trim().isEmpty
               ? null
               : _machineSerialCtrl.text.trim(),
-          // installationEngineerName is legacy; real engineer assignment is
-          // persisted via the machine_engineers junction table (see
-          // createMachineWithParts call below, which takes engineerIds).
           installationEngineerName: null,
           installationDate: _installDate,
           warrantyPeriod: _warrantyMonths,
           createdAt: DateTime.now(),
 
-          // PC Configuration Setup
-          pcCpu: _pcCpuCtrl.text.trim().isEmpty ? null : _pcCpuCtrl.text.trim(),
-          pcRam: _pcRamCtrl.text.trim().isEmpty ? null : _pcRamCtrl.text.trim(),
-          pcStorage: _pcStorageCtrl.text.trim().isEmpty ? null : _pcStorageCtrl.text.trim(),
-          pcOs: _pcOsCtrl.text.trim().isEmpty ? null : _pcOsCtrl.text.trim(),
-          // Store motherboard and LAN port info in customMetadata since InstalledMachine
-          // model doesn't have dedicated fields for these PC properties.
+          // Conditionally submit configurations based on _showPcConfig layout gate state
+          pcCpu: _showPcConfig && _pcCpuCtrl.text.trim().isNotEmpty ? _pcCpuCtrl.text.trim() : null,
+          pcRam: _showPcConfig && _pcRamCtrl.text.trim().isNotEmpty ? _pcRamCtrl.text.trim() : null,
+          pcStorage: _showPcConfig && _pcStorageCtrl.text.trim().isNotEmpty ? _pcStorageCtrl.text.trim() : null,
+          pcOs: _showPcConfig && _pcOsCtrl.text.trim().isNotEmpty ? _pcOsCtrl.text.trim() : null,
+          
           customMetadata: {
-            if (_pcMoboCtrl.text.trim().isNotEmpty)
+            if (_showPcConfig && _pcMoboCtrl.text.trim().isNotEmpty)
               'pc_motherboard': _pcMoboCtrl.text.trim(),
-            if (_pcLanPorts != null && _pcLanPorts!.trim().isNotEmpty)
+            if (_showPcConfig && _pcLanPorts != null && _pcLanPorts!.trim().isNotEmpty)
               'pc_lan_ports': _pcLanPorts!.trim(),
-            // FPD license type stored in metadata as InstalledMachine
-            // model doesn't have a dedicated field for it.
             if (typeEnum == MachineType.fpd && _fpdLicenseType != null && _fpdLicenseType!.trim().isNotEmpty)
               'fpd_license_type': _fpdLicenseType!.trim(),
             if (typeEnum == MachineType.fpd && _fpdDongleSerialCtrl.text.trim().isNotEmpty)
               'fpd_dongle_serial': _fpdDongleSerialCtrl.text.trim(),
           },
 
-          // Conditional Printer Specifications Mapping
           printerAe: typeEnum == MachineType.printer && _printerAeCtrl.text.trim().isNotEmpty ? _printerAeCtrl.text.trim() : null,
           printerIp1: typeEnum == MachineType.printer && _printerIp1Ctrl.text.trim().isNotEmpty ? _printerIp1Ctrl.text.trim() : null,
           printerIp2: typeEnum == MachineType.printer && _printerIp2Ctrl.text.trim().isNotEmpty ? _printerIp2Ctrl.text.trim() : null,
@@ -360,12 +351,10 @@ class _AddClientViewState extends State<_AddClientView> {
           printerMbVersion: typeEnum == MachineType.printer && _printerMbVerCtrl.text.trim().isNotEmpty ? _printerMbVerCtrl.text.trim() : null,
           printerImagerVersion: typeEnum == MachineType.printer && _printerImagerVerCtrl.text.trim().isNotEmpty ? _printerImagerVerCtrl.text.trim() : null,
 
-          // Conditional X-Ray Mapping
           xrayConsoleSl: typeEnum == MachineType.xRay && _xrayConsoleCtrl.text.trim().isNotEmpty ? _xrayConsoleCtrl.text.trim() : null,
           xrayTubeSl: typeEnum == MachineType.xRay && _xrayTubeCtrl.text.trim().isNotEmpty ? _xrayTubeCtrl.text.trim() : null,
           xrayGeneratorSl: typeEnum == MachineType.xRay && _xrayGeneratorCtrl.text.trim().isNotEmpty ? _xrayGeneratorCtrl.text.trim() : null,
 
-          // Conditional FPD Parameters Mapping
           fpdAcqId: typeEnum == MachineType.fpd && _fpdAcqIdCtrl.text.trim().isNotEmpty ? _fpdAcqIdCtrl.text.trim() : null,
           fpdSoftware: typeEnum == MachineType.fpd && _fpdSoftwareCtrl.text.trim().isNotEmpty ? _fpdSoftwareCtrl.text.trim() : null,
           fpdVersion: typeEnum == MachineType.fpd && _fpdVersionCtrl.text.trim().isNotEmpty ? _fpdVersionCtrl.text.trim() : null,
@@ -379,14 +368,12 @@ class _AddClientViewState extends State<_AddClientView> {
           _selectedEngineers,
         );
 
-        // 3. Upload PDF if selected
         if (_pdfBytes != null && _pdfFileName != null) {
           final storagePath = await machinesRepo.uploadInvoice(
             machineId: createdMachine.id,
             fileBytes: _pdfBytes!,
             fileName: _pdfFileName!,
           );
-          // Update machine with invoice URL
           await machinesRepo.updateMachineWithParts(
             createdMachine.copyWith(invoiceUrl: storagePath),
             createdMachine.parts,
@@ -395,7 +382,6 @@ class _AddClientViewState extends State<_AddClientView> {
         }
       }
 
-      // 4. Refresh clients list
       if (mounted) {
         context.read<ClientsBloc>().add(ClientsFetchRequested());
         AppFeedback.success(
@@ -632,6 +618,9 @@ class _AddClientViewState extends State<_AddClientView> {
                           installDate: _installDate,
                           warrantyMonths: _warrantyMonths,
                           dateFmt: _dateFmt,
+                          showPcConfig: _showPcConfig,
+                          onShowPcConfigChanged: (v) =>
+                              setState(() => _showPcConfig = v),
                           pcCpuCtrl: _pcCpuCtrl,
                           pcRamCtrl: _pcRamCtrl,
                           pcStorageCtrl: _pcStorageCtrl,
@@ -748,6 +737,8 @@ class _MachineSection extends StatelessWidget {
     required this.installDate,
     required this.warrantyMonths,
     required this.dateFmt,
+    required this.showPcConfig,
+    required this.onShowPcConfigChanged,
     required this.pcCpuCtrl,
     required this.pcRamCtrl,
     required this.pcStorageCtrl,
@@ -788,6 +779,9 @@ class _MachineSection extends StatelessWidget {
   final DateTime installDate;
   final int warrantyMonths;
   final DateFormat dateFmt;
+
+  final bool showPcConfig;
+  final ValueChanged<bool> onShowPcConfigChanged;
 
   final TextEditingController pcCpuCtrl;
   final TextEditingController pcRamCtrl;
@@ -851,10 +845,9 @@ class _MachineSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return BlocBuilder<ConfigBloc, ConfigState>(
       builder: (context, cfg) {
-        final currentType = MachineType.fromString(machineType);
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -915,102 +908,100 @@ class _MachineSection extends StatelessWidget {
                     ),
                   ),
                 ),
-               _Field(
-  label: 'Installation Engineers',
-  child: BlocBuilder<EngineersBloc, EngineersState>(
-    builder: (context, state) {
-      if (state is EngineersLoading) {
-        return const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8.0),
-          child: CircularProgressIndicator(strokeWidth: 2),
-        );
-      }
-
-      if (state is EngineersLoaded) {
-        final engineers = state.engineers;
-
-        if (engineers.isEmpty) {
-          return const Text('No engineers registered in the system.');
-        }
-
-        return Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: engineers.map((engineer) {
-            final isSelected = selectedEngineers.contains(engineer.id);
-            final isAvailable = engineer.isAvailable; // true or false from DB[cite: 6]
-
-            return FilterChip(
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(engineer.name),
-                  if (!isAvailable) ...[
-                    const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade800,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'ASSIGNED',
-                        style: TextStyle(
-                          fontSize: 8, 
-                          fontWeight: FontWeight.bold, 
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              selected: isSelected,
-              // If not available, we pass null to onSelected to disable the tap interaction
-              onSelected: isAvailable
-                  ? (selected) {
-                      final updated = List<String>.from(selectedEngineers);
-                      if (selected) {
-                        updated.add(engineer.id);
-                      } else {
-                        updated.remove(engineer.id);
+                _Field(
+                  label: 'Installation Engineers',
+                  child: BlocBuilder<EngineersBloc, EngineersState>(
+                    builder: (context, state) {
+                      if (state is EngineersLoading) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        );
                       }
-                      onEngineersChanged(updated);
-                    }
-                  : null, // Disables chip click
-              
-              // Custom colors based on availability and active selection state[cite: 9]
-              selectedColor: AppColors.accent.withOpacity(0.2),
-              checkmarkColor: AppColors.accent,
-              disabledColor: Colors.orange.withOpacity(0.12),
-              side: BorderSide(
-                color: isAvailable 
-                    ? (isSelected ? AppColors.accent : AppColors.surface3) 
-                    : Colors.orange.shade400,
-                width: 1,
-              ),
-              labelStyle: TextStyle(
-                color: isAvailable 
-                    ? AppColors.textPrimary 
-                    : Colors.orange.shade300,
-                fontWeight: isAvailable ? FontWeight.normal : FontWeight.w500,
-              ),
-            );
-          }).toList(),
-        );
-      }
 
-      if (state is EngineersError) {
-        return Text(
-          'Error loading engineers: ${state.message}', 
-          style: const TextStyle(color: Colors.red),
-        );
-      }
+                      if (state is EngineersLoaded) {
+                        final engineers = state.engineers;
 
-      return const Text('Initializing directory...');
-    },
-  ),
-),
+                        if (engineers.isEmpty) {
+                          return const Text('No engineers registered in the system.');
+                        }
+
+                        return Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: engineers.map((engineer) {
+                            final isSelected = selectedEngineers.contains(engineer.id);
+                            final isAvailable = engineer.isAvailable;
+
+                            return FilterChip(
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(engineer.name),
+                                  if (!isAvailable) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade800,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'ASSIGNED',
+                                        style: TextStyle(
+                                          fontSize: 8, 
+                                          fontWeight: FontWeight.bold, 
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              selected: isSelected,
+                              onSelected: isAvailable
+                                  ? (selected) {
+                                      final updated = List<String>.from(selectedEngineers);
+                                      if (selected) {
+                                        updated.add(engineer.id);
+                                      } else {
+                                        updated.remove(engineer.id);
+                                      }
+                                      onEngineersChanged(updated);
+                                    }
+                                  : null,
+                              
+                              selectedColor: AppColors.accent.withOpacity(0.2),
+                              checkmarkColor: AppColors.accent,
+                              disabledColor: Colors.orange.withOpacity(0.12),
+                              side: BorderSide(
+                                color: isAvailable 
+                                    ? (isSelected ? AppColors.accent : AppColors.surface3) 
+                                    : Colors.orange.shade400,
+                                width: 1,
+                              ),
+                              labelStyle: TextStyle(
+                                color: isAvailable 
+                                    ? AppColors.textPrimary 
+                                    : Colors.orange.shade300,
+                                fontWeight: isAvailable ? FontWeight.normal : FontWeight.w500,
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      }
+
+                      if (state is EngineersError) {
+                        return Text(
+                          'Error loading engineers: ${state.message}', 
+                          style: const TextStyle(color: Colors.red),
+                        );
+                      }
+
+                      return const Text('Initializing directory...');
+                    },
+                  ),
+                ),
                 _buildTwoColumnFields(
                   left: _Field(
                     label: 'Installation Date',
@@ -1045,65 +1036,91 @@ class _MachineSection extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
             ],
 
-            // ── PC Configuration Block ───────────────────────
+            // ── PC Configuration Block with Animated View Gating ───
             _SectionTitle('PC Configuration (Optional)'),
-            const SizedBox(height: AppSpacing.md),
-            _FormCard(
-              children: [
-                _buildTwoColumnFields(
-                  left: _Field(
-                    label: 'CPU',
-                    child: TextFormField(
-                      controller: pcCpuCtrl,
-                      decoration: const InputDecoration(hintText: 'e.g. Core i7'),
+            const SizedBox(height: AppSpacing.xs),
+            
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'Include Workstation Details',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+              ),
+              subtitle: Text(
+                'Turn on to append internal PC specs and hardware details',
+                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              ),
+              activeColor: AppColors.accent,
+              value: showPcConfig,
+              onChanged: onShowPcConfigChanged,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: !showPcConfig
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: _FormCard(
+                        children: [
+                          _buildTwoColumnFields(
+                            left: _Field(
+                              label: 'CPU',
+                              child: TextFormField(
+                                controller: pcCpuCtrl,
+                                decoration: const InputDecoration(hintText: 'e.g. Core i7'),
+                              ),
+                            ),
+                            right: _Field(
+                              label: 'RAM',
+                              child: TextFormField(
+                                controller: pcRamCtrl,
+                                decoration: const InputDecoration(hintText: 'e.g. 16GB'),
+                              ),
+                            ),
+                          ),
+                          _buildTwoColumnFields(
+                            left: _Field(
+                              label: 'Storage',
+                              child: TextFormField(
+                                controller: pcStorageCtrl,
+                                decoration: const InputDecoration(hintText: 'e.g. 512GB SSD'),
+                              ),
+                            ),
+                            right: _Field(
+                              label: 'Operating System',
+                              child: TextFormField(
+                                controller: pcOsCtrl,
+                                decoration: const InputDecoration(hintText: 'e.g. Windows 11 Pro'),
+                              ),
+                            ),
+                          ),
+                          _buildTwoColumnFields(
+                            left: _Field(
+                              label: 'Motherboard',
+                              child: TextFormField(
+                                controller: pcMoboCtrl,
+                                decoration: const InputDecoration(hintText: 'e.g. Asus Prime H610'),
+                              ),
+                            ),
+                            right: _Field(
+                              label: 'Number of LAN ports',
+                              child: DropdownButtonFormField<String>(
+                                value: pcLanPorts,
+                                isExpanded: true,
+                                dropdownColor: AppColors.surface2,
+                                items: ['1', '2', '3', '4']
+                                    .map((val) => DropdownMenuItem(value: val, child: Text(val)))
+                                    .toList(),
+                                onChanged: onLanPortsChanged,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  right: _Field(
-                    label: 'RAM',
-                    child: TextFormField(
-                      controller: pcRamCtrl,
-                      decoration: const InputDecoration(hintText: 'e.g. 16GB'),
-                    ),
-                  ),
-                ),
-                _buildTwoColumnFields(
-                  left: _Field(
-                    label: 'Storage',
-                    child: TextFormField(
-                      controller: pcStorageCtrl,
-                      decoration: const InputDecoration(hintText: 'e.g. 512GB SSD'),
-                    ),
-                  ),
-                  right: _Field(
-                    label: 'Operating System',
-                    child: TextFormField(
-                      controller: pcOsCtrl,
-                      decoration: const InputDecoration(hintText: 'e.g. Windows 11 Pro'),
-                    ),
-                  ),
-                ),
-                _buildTwoColumnFields(
-                  left: _Field(
-                    label: 'Motherboard',
-                    child: TextFormField(
-                      controller: pcMoboCtrl,
-                      decoration: const InputDecoration(hintText: 'e.g. Asus Prime H610'),
-                    ),
-                  ),
-                  right: _Field(
-                    label: 'Number of LAN ports',
-                    child: DropdownButtonFormField<String>(
-                      value: pcLanPorts,
-                      isExpanded: true,
-                      dropdownColor: AppColors.surface2,
-                      items: ['1', '2', '3', '4']
-                          .map((val) => DropdownMenuItem(value: val, child: Text(val)))
-                          .toList(),
-                      onChanged: onLanPortsChanged,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ],
         );
