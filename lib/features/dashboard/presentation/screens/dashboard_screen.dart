@@ -11,7 +11,7 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../../data/models/dashboard_analytics.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import '../../../config/presentation/widgets/developer_footer.dart';
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
   @override
@@ -187,53 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: AppSpacing.sm),
                     const Divider(height: 1),
                     const SizedBox(height: AppSpacing.md),
-                    InkWell(
-                      onTap: () async {
-                        final Uri url = Uri.parse('https://github.com/firefish46');
-                        try {
-                          if (await canLaunchUrl(url)) {
-                            await launchUrl(url, mode: LaunchMode.externalApplication);
-                          }
-                        } catch (e) {
-                          debugPrint('Error launching URL: $e');
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm, 
-                          vertical: AppSpacing.xs,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min, 
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: theme.dividerTheme.color ?? AppColors.surface3, 
-                                  width: 1,
-                                ),
-                              ),
-                              child: const CircleAvatar(
-                                radius: 11,
-                                backgroundColor: Colors.transparent,
-                                backgroundImage: NetworkImage('https://github.com/firefish46.png'),
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              'firefish46',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                   const DeveloperFooter(),
                   ],
                 ),
               ),

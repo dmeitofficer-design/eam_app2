@@ -61,33 +61,35 @@ class _LoginScreenState extends State<LoginScreen> {
     // Combine username with selected domain smoothly
     final fullEmail = '$username$_signInDomain';
 
+    // Capture target execution platform signature
+    final currentPlatform = Theme.of(context).platform.toString();
+
     context.read<AuthBloc>().add(
-      AuthLoginRequested(email: fullEmail, password: pass),
+      AuthLoginRequested(
+        email: fullEmail, 
+        password: pass,
+        platform: currentPlatform,
+      ),
     );
   }
 
   void _submitCreateAccount() {
-    final regUser    = _regEmailCtrl.text.trim();
+    final regUser        = _regEmailCtrl.text.trim();
     final regPass        = _regPassCtrl.text;
     final regConfirmPass = _regConfirmPassCtrl.text;
-    final adminUser     = _adminEmailCtrl.text.trim();
+    final adminUser      = _adminEmailCtrl.text.trim();
     final adminPass      = _adminPassCtrl.text;
 
     if (regUser.isEmpty || regPass.isEmpty || regConfirmPass.isEmpty || adminUser.isEmpty || adminPass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill out all fields.')),
-      );
+      _showErrorSnackBar('Please fill out all fields.');
       return;
     }
 
     if (regPass != regConfirmPass) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match. Please verify.')),
-      );
+      _showErrorSnackBar('Passwords do not match. Please verify.');
       return;
     }
 
-    // Combine usernames with domains dynamically
     final fullRegEmail = '$regUser$_regUserDomain';
     final fullAdminEmail = '$adminUser$_adminDomain';
 
@@ -102,6 +104,28 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  void _showErrorSnackBar(String message, {VoidCallback? onRetry}) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: Colors.redAccent.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        action: onRetry != null
+            ? SnackBarAction(
+                label: 'RETRY',
+                textColor: Colors.amberAccent,
+                onPressed: onRetry,
+              )
+            : null,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -111,14 +135,17 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
+            _showErrorSnackBar(
+              state.message,
+              onRetry: _isRegistering ? _submitCreateAccount : _submitSignIn,
             );
           } 
           else if (state is AuthRegisterSuccess) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating,
                 content: Text('Account successfully requested/created! Please sign in.'),
               ),
             );
@@ -154,6 +181,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ── Layout 1: Sign In View ──────────────────────────────────────────────
   Widget _buildSignInForm(ThemeData theme, AuthState state) {
+    final isLoading = state is AuthLoading;
+
     return Column(
       key: const ValueKey('SignInForm'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,6 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _buildFieldLabel(theme, 'USERNAME'),
         TextField(
           controller: _emailCtrl,
+          enabled: !isLoading,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
           style: theme.textTheme.bodyLarge,
@@ -205,9 +235,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _buildFieldLabel(theme, 'PASSWORD'),
         TextField(
           controller: _passCtrl,
+          enabled: !isLoading,
           obscureText: _obscureSignIn,
           textInputAction: TextInputAction.done,
-          onSubmitted: (_) => state is AuthLoading ? null : _submitSignIn(),
+          onSubmitted: (_) => isLoading ? null : _submitSignIn(),
           style: theme.textTheme.bodyLarge,
           decoration: InputDecoration(
             hintText: '••••••••',
@@ -224,12 +255,12 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: AppSpacing.xl),
 
         ElevatedButton(
-          onPressed: state is AuthLoading ? null : _submitSignIn, 
+          onPressed: isLoading ? null : _submitSignIn, 
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.accent,
             minimumSize: const Size(double.infinity, 52),
           ),
-          child: state is AuthLoading
+          child: isLoading
               ? const SizedBox(
                   height: 20,
                   width: 20,
@@ -244,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             Text("Need system access? ", style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)),
             GestureDetector(
-              onTap: state is AuthLoading ? null : () => setState(() => _isRegistering = true),
+              onTap: isLoading ? null : () => setState(() => _isRegistering = true),
               child: Text(
                 "Create Account",
                 style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
@@ -405,9 +436,9 @@ class _LoginScreenState extends State<LoginScreen> {
         child: DropdownButton<String>(
           value: currentValue,
           onChanged: onChanged,
-          icon:  Icon(Icons.arrow_drop_down, color: AppColors.textTertiary, size: 20),
+          icon: Icon(Icons.arrow_drop_down, color: AppColors.textTertiary, size: 20),
           alignment: Alignment.centerRight,
-          dropdownColor: AppColors.surface1, // Matches system style themes safely
+          dropdownColor: AppColors.surface1,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: AppColors.textTertiary,
             fontWeight: FontWeight.w600,

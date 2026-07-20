@@ -2,6 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/error_formatter.dart';
 import '../../data/models/hospital_client.dart';
 import '../../data/repositories/clients_repository.dart';
 
@@ -110,11 +111,11 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
 
   final ClientsRepository _repo;
 
-Future<void> _onFetch(
+  Future<void> _onFetch(
     ClientsFetchRequested event,
     Emitter<ClientsState> emit,
   ) async {
-    // CACHE CHECK: If not a forced refresh and cache isn't empty, exit early and keep current data
+    // CACHE CHECK: If not a forced refresh and cache isn't empty, exit early
     if (!event.forceRefresh && state.clients.isNotEmpty) {
       return;
     }
@@ -175,11 +176,13 @@ Future<void> _onFetch(
         division: state.divisionFilter,
         facilityType: state.facilityTypeFilter,
       );
-      emit(state.copyWith(clients: clients, isLoading: false));
+      // Clears any previous error string on success
+      emit(state.copyWith(clients: clients, isLoading: false, error: null));
     } catch (e) {
+      // Formats raw exceptions into clean user messages via ErrorFormatter
       emit(state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: ErrorFormatter.format(e),
       ));
     }
   }

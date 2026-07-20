@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+import '../../../../core/utils/error_formatter.dart'; // 🌟 Added ErrorFormatter import
 import '../../data/models/user_profile.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -20,12 +21,18 @@ class AuthStarted extends AuthEvent {}
 class AuthLoginRequested extends AuthEvent {
   final String email;
   final String password;
-  const AuthLoginRequested({required this.email, required this.password});
+  final String platform;
+
+  const AuthLoginRequested({
+    required this.email, 
+    required this.password,
+    required this.platform,
+  });
+
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => [email, password, platform];
 }
 
-// Added missing Registration Event to handle signup details from the form
 class AuthRegisterRequested extends AuthEvent {
   final String email;
   final String password;
@@ -74,7 +81,6 @@ class AuthAuthenticated extends AuthState {
 
 class AuthUnauthenticated extends AuthState {}
 
-// Added missing Registration Success State to safely trigger UI view toggle
 class AuthRegisterSuccess extends AuthState {
   const AuthRegisterSuccess();
   @override
@@ -96,11 +102,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         super(AuthInitial()) {
     on<AuthStarted>(_onStarted);
     on<AuthLoginRequested>(_onLoginRequested);
-    on<AuthRegisterRequested>(_onRegisterRequested); // Registered the new event handler
+    on<AuthRegisterRequested>(_onRegisterRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
     on<_AuthStateChanged>(_onAuthStateChanged);
 
-    // Listen to Supabase auth state stream
     _authSub = _repo.authStateChanges.listen(
       (state) => add(_AuthStateChanged(state)),
     );
@@ -119,6 +124,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthUnauthenticated());
       }
     } catch (_) {
+      // Gracefully fall back to login on startup failure/offline launch
       emit(AuthUnauthenticated());
     }
   }
@@ -132,6 +138,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final profile = await _repo.signIn(
         email: event.email,
         password: event.password,
+        platform: event.platform, 
       );
       if (profile != null) {
         emit(AuthAuthenticated(profile));
@@ -139,21 +146,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(const AuthError('Login failed. Check your credentials.'));
       }
     } on sb.AuthException catch (e) {
-      emit(AuthError(e.message));
+      // 🌟 Formats Supabase Auth Exceptions safely
+      emit(AuthError(ErrorFormatter.format(e)));
     } catch (e) {
-      emit(AuthError('Unexpected error: ${e.toString()}'));
+      // 🌟 Intercepts SocketException / ClientException / Timeout
+      emit(AuthError(ErrorFormatter.format(e)));
     }
   }
 
-  // Implemented Registration Request Handler
   Future<void> _onRegisterRequested(
     AuthRegisterRequested event,
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
     try {
-      // NOTE: Make sure your AuthRepository implementation matches this method call signature.
-      // If your repository uses different naming (e.g. register, signUp), change this line below:
       await _repo.registerWithAdminApproval(
         email: event.email,
         password: event.password,
@@ -161,15 +167,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         adminEmail: event.adminEmail,
         adminPassword: event.adminPassword,
       );
-
-      // Alternatively, if testing direct Supabase communication bypassing the repo:
-      // await sb.Supabase.instance.client.auth.signUp(email: event.email, password: event.password);
-
       emit(const AuthRegisterSuccess());
     } on sb.AuthException catch (e) {
-      emit(AuthError(e.message));
+      emit(AuthError(ErrorFormatter.format(e)));
     } catch (e) {
-      emit(AuthError('Registration unexpected error: ${e.toString()}'));
+      emit(AuthError(ErrorFormatter.format(e)));
     }
   }
 
@@ -177,7 +179,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    await _repo.signOut();
+    try {
+      await _repo.signOut();
+    } catch (_) {
+      // Even if offline during logout call, reset local state safely
+    }
     emit(AuthUnauthenticated());
   }
 

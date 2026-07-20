@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../constants/app_constants.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/config/presentation/widgets/developer_tile.dart';
 
 // Import your Blocs/Events to access them inside the refresh action
 import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
@@ -27,11 +28,23 @@ class AppShell extends StatelessWidget {
       label: 'Clients',
       path: '/clients',
     ),
+    _NavDest(
+      icon: Icons.engineering_rounded,
+      label: 'Engineers',
+      path: '/engineers',
+    ),
+    _NavDest(
+      icon: Icons.gpp_good_rounded,
+      label: 'Device Security',
+      path: '/device-management',
+    ),
   ];
 
   int _selectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/clients')) return 1;
+    if (location.startsWith('/engineers')) return 2;
+    if (location.startsWith('/device-management')) return 3;
     return 0;
   }
 
@@ -59,7 +72,7 @@ class AppShell extends StatelessWidget {
 
 // ── Desktop: persistent NavigationRail ──────────────────────
 
-class _DesktopShell extends StatelessWidget {
+class _DesktopShell extends StatefulWidget {
   const _DesktopShell({
     required this.destinations,
     required this.selectedIndex,
@@ -70,7 +83,12 @@ class _DesktopShell extends StatelessWidget {
   final int selectedIndex;
   final Widget child;
 
-  // Added dynamic refresh routing execution method
+  @override
+  State<_DesktopShell> createState() => _DesktopShellState();
+}
+
+class _DesktopShellState extends State<_DesktopShell> {
+  // Dynamic refresh routing execution method
   void _handleGlobalRefresh(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
 
@@ -80,7 +98,6 @@ class _DesktopShell extends StatelessWidget {
         const SnackBar(content: Text('Refreshing dashboard data...'), duration: Duration(milliseconds: 600)),
       );
     } else if (location.startsWith('/clients')) {
-      // Adjust this event to match the exact load/fetch event name inside your ClientsBloc
       context.read<ClientsBloc>().add(const ClientsFetchRequested(forceRefresh: true)); 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Refreshing client registries...'), duration: Duration(milliseconds: 600)),
@@ -99,9 +116,9 @@ class _DesktopShell extends StatelessWidget {
       backgroundColor: isDark ? AppColors.surface0 : AppColors.lightSurface0,
       body: Row(
         children: [
-          // Rail
+          // Rail Sidebar
           Container(
-            width: 220,
+            width: 230,
             color: isDark ? AppColors.surface1 : AppColors.lightSurface1,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +129,6 @@ class _DesktopShell extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                   child: Row(
                     children: [
-                      // Wrapped the account_tree icon with InkWell for interaction
                       InkWell(
                         onTap: () => _handleGlobalRefresh(context),
                         borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -132,29 +148,32 @@ class _DesktopShell extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'DME Client Manager',
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          Text(
-                            'EAM Platform',
-                            style: theme.textTheme.labelSmall,
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'DME Client Manager',
+                              style: theme.textTheme.titleSmall,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'EAM Platform',
+                              style: theme.textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
 
-                // Nav items
-                ...destinations.asMap().entries.map((entry) {
+                // Core Navigation Destination Items
+                ...widget.destinations.asMap().entries.map((entry) {
                   final idx = entry.key;
                   final dest = entry.value;
-                  final isSelected = idx == selectedIndex;
+                  final isSelected = idx == widget.selectedIndex;
                   return _RailItem(
                     dest: dest,
                     isSelected: isSelected,
@@ -163,31 +182,73 @@ class _DesktopShell extends StatelessWidget {
                 }),
 
                 const Spacer(),
+                
+                // ── Theme / Preferences Panel ─────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isDark ? 'Dark Mode' : 'Light Mode',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: isDark ? AppColors.textSecondary : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: isDark,
+                        activeColor: AppColors.accent,
+                        onChanged: (value) {
+                          setState(() {
+                            ThemeController.toggleTheme();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
                 const Divider(indent: 16, endIndent: 16),
 
-                // Profile
+                // ── Developer Info Section ────────────────────────
+                const DeveloperTile(),
+                
+                const Divider(indent: 16, endIndent: 16),
+
+                // ── Consolidated Account/Profile Footer ───────────
                 if (profile != null)
                   Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: isDark
-                              ? AppColors.accentSurface
-                              : const Color(0xFFE0F2FE),
-                          child: Text(
-                            (profile.fullName?.isNotEmpty == true
-                                    ? profile.fullName![0]
-                                    : 'U')
-                                .toUpperCase(),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: const Color.fromARGB(255, 99, 198, 255),
-                              fontWeight: FontWeight.w700,
+                        // Dynamic GitHub Avatar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16), 
+                          child: SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Image.network(
+                              'https://avatars.githubusercontent.com/u/89613146?v=4',
+                              fit: BoxFit.cover,
+                              cacheWidth: 64,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: isDark ? AppColors.accentSurface : const Color(0xFFE0F2FE),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    (profile.fullName?.isNotEmpty == true ? profile.fullName![0] : 'U').toUpperCase(),
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: const Color.fromARGB(255, 99, 198, 255),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
+                        // User Context Information
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,24 +268,69 @@ class _DesktopShell extends StatelessWidget {
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.logout_rounded, size: 18),
-                          onPressed: () =>
-                              context.read<AuthBloc>().add(AuthLogoutRequested()),
-                          color: isDark ? AppColors.textTertiary : AppColors.lightTextTertiary,
-                          tooltip: 'Sign out',
+                        // Identity Control Menu (Change Password & Logout Actions)
+                        PopupMenuButton<String>(
+                          icon: Icon(
+                            Icons.more_vert_rounded,
+                            size: 18,
+                            color: isDark ? AppColors.textTertiary : AppColors.lightTextTertiary,
+                          ),
+                          tooltip: 'Account Options',
+                          position: PopupMenuPosition.under,
+                          onSelected: (value) {
+                            if (value == 'password') {
+                              context.go('/change-password');
+                            } else if (value == 'security') {
+                              context.go('/device-management');
+                            } else if (value == 'logout') {
+                              context.read<AuthBloc>().add(AuthLogoutRequested());
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => [
+                            const PopupMenuItem<String>(
+                              value: 'password',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.lock_reset_rounded, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Change Password'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem<String>(
+                              value: 'security',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.gpp_good_rounded, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Device Security'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuDivider(),
+                            const PopupMenuItem<String>(
+                              value: 'logout',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
+                                  SizedBox(width: 8),
+                                  Text('Sign Out', style: TextStyle(color: Colors.redAccent)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
               ],
             ),
           ),
-          // Vertical divider
+          // Vertical layout divider separator line
           Container(width: 1, color: isDark ? AppColors.surface2 : AppColors.lightSurface2),
-          // Content
-          Expanded(child: child),
+          // Primary Sub-Tree Content Viewport
+          Expanded(child: widget.child),
         ],
       ),
     );

@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart'; // Added Import to support tel protocols
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/feedback.dart';
+import '../../../../core/widgets/error_state_widget.dart';
 import '../../../machines/data/models/installed_machine.dart';
 import '../../../machines/presentation/bloc/machines_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -30,21 +31,40 @@ class ClientDetailScreen extends StatefulWidget {
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
   HospitalClient? _client;
   bool _loadingClient = true;
+  String? _clientError;
 
   @override
   void initState() {
     super.initState();
     _loadClient();
+    _fetchMachines();
+  }
+
+  void _fetchMachines() {
     context.read<MachinesBloc>().add(MachinesFetchRequested(widget.clientId));
   }
 
   Future<void> _loadClient() async {
+    setState(() {
+      _loadingClient = true;
+      _clientError = null;
+    });
     try {
       final repo = context.read<ClientsRepository>();
       final client = await repo.getClientById(widget.clientId);
-      if (mounted) setState(() { _client = client; _loadingClient = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loadingClient = false);
+      if (mounted) {
+        setState(() {
+          _client = client;
+          _loadingClient = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _clientError = e.toString();
+          _loadingClient = false;
+        });
+      }
     }
   }
 
@@ -86,7 +106,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ),
     );
     if (result == true && mounted) {
-      context.read<MachinesBloc>().add(MachinesFetchRequested(widget.clientId));
+      _fetchMachines();
       AppFeedback.success(context, 'Machine added.');
     }
   }
@@ -121,7 +141,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     if (confirmed == true && mounted) {
       try {
         await context.read<ClientsRepository>().deleteClient(widget.clientId);
-        context.read<ClientsBloc>().add(ClientsFetchRequested());
+        context.read<ClientsBloc>().add(const ClientsFetchRequested());
         if (mounted) context.go('/clients');
       } catch (e) {
         if (mounted) AppFeedback.error(context, e.toString());
@@ -129,9 +149,28 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     }
   }
 
+  void _showErrorSnackBar(String errorMessage) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          errorMessage,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: Colors.redAccent.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        action: SnackBarAction(
+          label: 'RETRY',
+          textColor: Colors.amberAccent,
+          onPressed: _fetchMachines,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= AppConstants.tabletBreakpoint;
     final authState = context.watch<AuthBloc>().state;
@@ -166,43 +205,60 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ),
       body: _loadingClient
           ? const Center(child: CircularProgressIndicator())
-          : _client == null
-              ? const Center(child: Text('Client not found.'))
-              : SingleChildScrollView(
-                  padding: EdgeInsets.all(
-                    isDesktop ? AppSpacing.xl : AppSpacing.md,
-                  ),
-                  child: isDesktop
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 320,
-                              child: _ClientProfileCard(client: _client!),
-                            ),
-                            const SizedBox(width: AppSpacing.lg),
-                            Expanded(
-                              child: _MachinesList(
-                                isAdmin: isAdmin,
-                                clientId: widget.clientId,
-                                onAddMachine: _openAddMachine,
-                              ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _ClientProfileCard(client: _client!),
-                            const SizedBox(height: AppSpacing.lg),
-                            _MachinesList(
-                              isAdmin: isAdmin,
-                              clientId: widget.clientId,
-                              onAddMachine: _openAddMachine,
-                            ),
-                          ],
+          : _clientError != null
+              ? ErrorStateWidget(
+                  rawError: _clientError!,
+                  onRetry: () {
+                    _loadClient();
+                    _fetchMachines();
+                  },
+                )
+              : _client == null
+                  ? const Center(child: Text('Client not found.'))
+                  : BlocListener<MachinesBloc, MachinesState>(
+                      listener: (context, state) {
+                        if (state is MachinesError) {
+                          _showErrorSnackBar(state.message);
+                        }
+                      },
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.all(
+                          isDesktop ? AppSpacing.xl : AppSpacing.md,
                         ),
-                ),
+                        child: isDesktop
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 320,
+                                    child: _ClientProfileCard(client: _client!),
+                                  ),
+                                  const SizedBox(width: AppSpacing.lg),
+                                  Expanded(
+                                    child: _MachinesList(
+                                      isAdmin: isAdmin,
+                                      clientId: widget.clientId,
+                                      onAddMachine: _openAddMachine,
+                                      onRetry: _fetchMachines,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _ClientProfileCard(client: _client!),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  _MachinesList(
+                                    isAdmin: isAdmin,
+                                    clientId: widget.clientId,
+                                    onAddMachine: _openAddMachine,
+                                    onRetry: _fetchMachines,
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
     );
   }
 }
@@ -213,7 +269,6 @@ class _ClientProfileCard extends StatelessWidget {
   const _ClientProfileCard({required this.client});
   final HospitalClient client;
 
-  // Handles initializing phone execution channels cleanly
   Future<void> _makeCall(BuildContext context, String phoneNumber) async {
     final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
     final Uri url = Uri.parse('tel:$cleanNumber');
@@ -302,15 +357,16 @@ class _ClientProfileCard extends StatelessWidget {
             value: client.contactPersonDesignation,
           ),
           const SizedBox(height: AppSpacing.xs),
-          
-          // ── Appended Interactivity Call Trigger Layer ───────────────────
           _InfoRow(
             icon: Icons.phone_rounded,
             label: 'Phone',
-            value: client.contactPersonPhone.isNotEmpty ? client.contactPersonPhone : 'Not Provided',
+            value: client.contactPersonPhone.isNotEmpty
+                ? client.contactPersonPhone
+                : 'Not Provided',
             trailing: client.contactPersonPhone.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.call_rounded, color: AppColors.success, size: 20),
+                    icon: const Icon(Icons.call_rounded,
+                        color: AppColors.success, size: 20),
                     tooltip: 'Call individual contact',
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.success.withOpacity(0.12),
@@ -331,7 +387,7 @@ class _InfoRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
-    this.trailing, // Optional widget argument added to support contextual buttons
+    this.trailing,
   });
   final IconData icon;
   final String label;
@@ -342,7 +398,7 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center, // Aligns items gracefully with trailing buttons
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(icon, size: 16, color: AppColors.textTertiary),
         const SizedBox(width: AppSpacing.sm),
@@ -404,10 +460,12 @@ class _MachinesList extends StatelessWidget {
     required this.isAdmin,
     required this.clientId,
     required this.onAddMachine,
+    required this.onRetry,
   });
   final bool isAdmin;
   final String clientId;
   final VoidCallback onAddMachine;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -444,10 +502,9 @@ class _MachinesList extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (state is MachinesError) {
-              return Text(
-                state.message,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.error),
+              return ErrorStateWidget(
+                rawError: state.message,
+                onRetry: onRetry,
               );
             }
             if (state is MachinesLoaded) {

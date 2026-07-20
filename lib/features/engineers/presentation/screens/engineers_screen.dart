@@ -1,4 +1,5 @@
 // lib/features/engineers/presentation/screens/engineers_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
@@ -135,13 +136,17 @@ class _EngineersScreenState extends State<EngineersScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
 
-              // ── Bloc Builder Screen State ────────────────────────────────
+              // ── Bloc Consumer Screen State ────────────────────────────────
               Expanded(
                 child: BlocConsumer<EngineersBloc, EngineersState>(
                   listener: (context, state) {
                     if (state is EngineersError) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+                      );
+                    } else if (state is EngineersActionFailure) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(state.message), backgroundColor: Colors.redAccent),
                       );
                     } else if (state is EngineersActionSuccess) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -173,12 +178,12 @@ class _EngineersScreenState extends State<EngineersScreen> {
                       );
                     }
 
-                    List<Engineer> engineersList = [];
-                    if (state is EngineersLoaded) {
-                      engineersList = state.engineers;
-                    } else if (state is EngineersActionSuccess) {
-                      engineersList = state.engineers;
-                    }
+                    final List<Engineer> engineersList = switch (state) {
+                      EngineersLoaded(:final engineers) => engineers,
+                      EngineersActionSuccess(:final engineers) => engineers,
+                      EngineersActionFailure(:final engineers) => engineers,
+                      _ => <Engineer>[],
+                    };
 
                     final filteredEngineers = engineersList.where((eng) {
                       final nameMatch = eng.name.toLowerCase().contains(_searchQuery);
@@ -194,7 +199,7 @@ class _EngineersScreenState extends State<EngineersScreen> {
                             Icon(
                               Icons.engineering_rounded, 
                               size: 64, 
-                              color: AppColors.textTertiary
+                              color: AppColors.textTertiary,
                             ),
                             const SizedBox(height: AppSpacing.md),
                             Text(
@@ -210,7 +215,7 @@ class _EngineersScreenState extends State<EngineersScreen> {
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: AppSpacing.lg, 
-                                  vertical: AppSpacing.md
+                                  vertical: AppSpacing.md,
                                 ),
                               ),
                               onPressed: _openAddEngineerSheet,
@@ -310,111 +315,111 @@ class _EngineerCard extends StatelessWidget {
     return Opacity(
       opacity: isActive ? 1.0 : 0.55,
       child: Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface1,
-        borderRadius: AppRadius.card,
-        border: Border.all(color: AppColors.surface2),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: isAvailable 
-                ? Colors.blue.withOpacity(0.12) 
-                : Colors.orange.withOpacity(0.12),
-            child: Text(
-              engineer.name.isNotEmpty ? engineer.name[0].toUpperCase() : '?',
-              style: TextStyle(
-                color: isAvailable ? Colors.blue : Colors.orange,
-                fontWeight: FontWeight.bold,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface1,
+          borderRadius: AppRadius.card,
+          border: Border.all(color: AppColors.surface2),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: isAvailable 
+                  ? Colors.blue.withOpacity(0.12) 
+                  : Colors.orange.withOpacity(0.12),
+              child: Text(
+                engineer.name.isNotEmpty ? engineer.name[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: isAvailable ? Colors.blue : Colors.orange,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
+            const SizedBox(width: AppSpacing.md),
 
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min, 
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        engineer.name,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min, 
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          engineer.name,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!isActive) ...[
-                          const _InactiveBadge(),
-                          const SizedBox(width: AppSpacing.xs),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!isActive) ...[
+                            const _InactiveBadge(),
+                            const SizedBox(width: AppSpacing.xs),
+                          ],
+                          _StatusBadge(isAvailable: isAvailable),
                         ],
-                        _StatusBadge(isAvailable: isAvailable),
-                      ],
+                      ),
+                    ],
+                  ),
+                  if (engineer.designation != null && engineer.designation!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      engineer.designation!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-                if (engineer.designation != null && engineer.designation!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
-                    engineer.designation!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
+                    engineer.phone ?? 'No contact listed',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                  
+                  const SizedBox(height: AppSpacing.md), 
+                  
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.textSecondary),
+                        tooltip: 'Edit Profile',
+                        onPressed: () {
+                          EngineerFormSheet.show(
+                            context,
+                            machineId: engineer.machineId,
+                            engineer: engineer,
+                          );
+                        },
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                        tooltip: 'Delete Profile',
+                        onPressed: () => _confirmDelete(context, engineer),
+                      ),
+                    ],
                   ),
                 ],
-                const SizedBox(height: 4),
-                Text(
-                  engineer.phone ?? 'No contact listed',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                
-                const SizedBox(height: AppSpacing.md), 
-                
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      icon: Icon(Icons.edit_rounded, size: 18, color: AppColors.textSecondary),
-                      tooltip: 'Edit Profile',
-                      onPressed: () {
-                        EngineerFormSheet.show(
-                          context,
-                          machineId: engineer.machineId,
-                          engineer: engineer,
-                        );
-                      },
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
-                      tooltip: 'Delete Profile',
-                      onPressed: () => _confirmDelete(context, engineer),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -532,33 +537,70 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isNetworkIssue = message.toLowerCase().contains('internet') ||
+        message.toLowerCase().contains('connection') ||
+        message.toLowerCase().contains('timed out') ||
+        message.toLowerCase().contains('supabase');
+
     return Center(
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.08),
-          borderRadius: AppRadius.card,
-          border: Border.all(color: AppColors.error.withOpacity(0.3)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_rounded, color: AppColors.error, size: 36),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.error,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: AppColors.surface1,
+            borderRadius: AppRadius.card,
+            border: Border.all(color: AppColors.surface2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: isNetworkIssue 
+                      ? Colors.orange.withOpacity(0.1) 
+                      : AppColors.error.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isNetworkIssue ? Icons.wifi_off_rounded : Icons.cloud_off_rounded,
+                  color: isNetworkIssue ? Colors.orange : AppColors.error,
+                  size: 40,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Retry Loading'),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                isNetworkIssue ? 'Connection Error' : 'Unable to Load Data',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.md,
+                  ),
+                ),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Retry Connection'),
+              ),
+            ],
+          ),
         ),
       ),
     );

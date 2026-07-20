@@ -71,7 +71,14 @@ class _ChangePasswordViewState extends State<_ChangePasswordView> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            // Safe pop validation layer preventing desktop navigation breakage
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
         ),
         title: const Text('Change Password'),
       ),
@@ -80,7 +87,13 @@ class _ChangePasswordViewState extends State<_ChangePasswordView> {
           listener: (context, state) {
             if (state is ChangePasswordSuccess) {
               AppFeedback.success(context, 'Password updated successfully.');
-              context.pop(); // Returns back to the settings profile view
+              
+              // Safe pop navigation redirect layer on successful operations
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/dashboard');
+              }
             } else if (state is ChangePasswordFailure) {
               AppFeedback.error(context, state.error);
             }

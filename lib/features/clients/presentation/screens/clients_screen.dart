@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/widgets/error_state_widget.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../config/data/repositories/config_repository.dart';
 import '../../../config/presentation/bloc/config_bloc.dart';
@@ -25,13 +26,17 @@ class _ClientsScreenState extends State<ClientsScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<ClientsBloc>().add(ClientsFetchRequested());
+    _fetchClients(force: false);
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _fetchClients({bool force = false}) {
+    context.read<ClientsBloc>().add(ClientsFetchRequested(forceRefresh: force));
   }
 
   void _openAddClient() {
@@ -52,6 +57,26 @@ class _ClientsScreenState extends State<ClientsScreen> {
     );
   }
 
+  void _showErrorSnackBar(String errorMessage) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          errorMessage,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: Colors.redAccent.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        action: SnackBarAction(
+          label: 'RETRY',
+          textColor: Colors.amberAccent,
+          onPressed: () => _fetchClients(force: true),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -65,15 +90,14 @@ class _ClientsScreenState extends State<ClientsScreen> {
       backgroundColor: AppColors.surface0,
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
-  onPressed: _openAddClient,
-  backgroundColor: AppColors.accent,
-  foregroundColor: Colors.white,
-  icon: const Icon(Icons.add_rounded),
-  label: const Text('Add Client'),
-  elevation: 0,
-  // Automatically makes the button perfectly pill-shaped
-  shape: const StadiumBorder(), 
-)
+              onPressed: _openAddClient,
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add Client'),
+              elevation: 0,
+              shape: const StadiumBorder(), 
+            )
           : null,
       body: SafeArea(
         child: Column(
@@ -107,7 +131,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           ),
                         ],
                       ),
-                      // Desktop: show add button here instead of FAB
                       if (isAdmin && isDesktop)
                         ElevatedButton.icon(
                           onPressed: _openAddClient,
@@ -164,46 +187,35 @@ class _ClientsScreenState extends State<ClientsScreen> {
             const SizedBox(height: AppSpacing.sm),
             const Divider(height: 1),
 
-           // ── List ──────────────────────────────────────
+            // ── List ──────────────────────────────────────
             Expanded(
-              child: BlocBuilder<ClientsBloc, ClientsState>(
+              child: BlocConsumer<ClientsBloc, ClientsState>(
+                listener: (context, state) {
+                  // Show SnackBar when an error occurs while keeping existing list data
+                  if (state.error != null && state.clients.isNotEmpty) {
+                    _showErrorSnackBar(state.error!);
+                  }
+                },
                 builder: (context, state) {
-                  if (state.isLoading) return _ShimmerList();
+                  if (state.isLoading && state.clients.isEmpty) {
+                    return _ShimmerList();
+                  }
 
-                  if (state.error != null) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.error_rounded,
-                              color: AppColors.error, size: 40),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(state.error!,
-                              style: theme.textTheme.bodyMedium
-                                  ?.copyWith(color: AppColors.error)),
-                          const SizedBox(height: AppSpacing.md),
-                          OutlinedButton(
-                            // CHANGED: Added forceRefresh: true so retry bypasses the cache check
-                            onPressed: () => context
-                                .read<ClientsBloc>()
-                                .add(const ClientsFetchRequested(forceRefresh: true)),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
+                  // Render full error retry view when no clients are cached/available
+                  if (state.error != null && state.clients.isEmpty) {
+                    return ErrorStateWidget(
+                      rawError: state.error!,
+                      onRetry: () => _fetchClients(force: true),
                     );
                   }
 
-                  // Common helper to run the pull-to-refresh animation smoothly
                   Future<void> handleRefresh() async {
                     final bloc = context.read<ClientsBloc>();
                     bloc.add(const ClientsFetchRequested(forceRefresh: true));
-                    // Holds the spinner indicator until loading state switches back to false
                     await bloc.stream.firstWhere((s) => !s.isLoading);
                   }
 
                   if (state.clients.isEmpty) {
-                    // CHANGED: Wrapped empty screen in a CustomScrollView so swipe to refresh still works
                     return RefreshIndicator(
                       color: AppColors.accent,
                       backgroundColor: AppColors.surface1,
@@ -256,13 +268,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
                     );
                   }
 
-                  // CHANGED: Added RefreshIndicator over the active list layout
                   return RefreshIndicator(
                     color: AppColors.accent,
                     backgroundColor: AppColors.surface1,
                     onRefresh: handleRefresh,
                     child: ListView.separated(
-                      // AlwaysScrollableScrollPhysics allows short lists that don't fill the screen to be pullable
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: EdgeInsets.fromLTRB(
                         isDesktop ? AppSpacing.xl : AppSpacing.md,
@@ -364,14 +374,14 @@ class _DropdownChip<T> extends StatelessWidget {
   final void Function(T) onSelected;
   final VoidCallback onCleared;
 
-@override
+  @override
   Widget build(BuildContext context) {
-return GestureDetector(
+    return GestureDetector(
       onTap: () async {
         if (isActive) { onCleared(); return; }
         final result = await showModalBottomSheet<T>(
           context: context,
-          isScrollControlled: true, // Allows full height expansion if needed
+          isScrollControlled: true,
           backgroundColor: AppColors.surface1,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -392,20 +402,16 @@ return GestureDetector(
                     ),
                   ),
                   Divider(height: 1, thickness: 1, color: AppColors.surface3),
-                  
-                // Map entries with index to implement alternating monotone colors
                   ...items.asMap().entries.map((entry) {
                     final index = entry.key;
                     final item = entry.value;
-                    
-                    // Alternating subtle monotone shades to clearly separate rows
                     final rowBgColor = index.isEven ? AppColors.surface4 : AppColors.surface1;
 
                     return Container(
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: AppColors.surface2, // Clean clean gray divider line
+                            color: AppColors.surface2,
                             width: 1.0,
                           ),
                         ),
@@ -413,12 +419,9 @@ return GestureDetector(
                       child: ListTile(
                         dense: true, 
                         tileColor: rowBgColor,
-                        
-                        // FIX: Completely removes any border radius from the row and its tap splash effect
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.zero,
                         ),
-                        
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.lg,
                           vertical: 2, 
@@ -487,22 +490,23 @@ class _ClientCard extends StatelessWidget {
   const _ClientCard({required this.client, required this.onTap});
   final HospitalClient client;
   final VoidCallback onTap;
-IconData _facilityIcon(FacilityType type) {
-  switch (type) {
-    case FacilityType.hospital:
-      return Icons.local_hospital_rounded;
-    case FacilityType.clinic:
-      return Icons.medical_services_rounded;
-    case FacilityType.diagnosticCenter:
-      return Icons.biotech_rounded;
-    case FacilityType.government:
-      return Icons.account_balance_rounded; // Fits authority/government institutions
-    case FacilityType.medicalCheckupCenter:
-      return Icons.domain_rounded; // Represents a large multi-facility complex
-    case FacilityType.reseller:
-      return Icons.handshake_rounded; // Fits business/distribution partnerships
+
+  IconData _facilityIcon(FacilityType type) {
+    switch (type) {
+      case FacilityType.hospital:
+        return Icons.local_hospital_rounded;
+      case FacilityType.clinic:
+        return Icons.medical_services_rounded;
+      case FacilityType.diagnosticCenter:
+        return Icons.biotech_rounded;
+      case FacilityType.government:
+        return Icons.account_balance_rounded;
+      case FacilityType.medicalCheckupCenter:
+        return Icons.domain_rounded;
+      case FacilityType.reseller:
+        return Icons.handshake_rounded;
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {

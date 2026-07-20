@@ -689,8 +689,6 @@ class _AddClientViewState extends State<_AddClientView> {
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 56),
                           shape: const StadiumBorder(),
-                        ).copyWith(
-                          shape: MaterialStateProperty.all(const StadiumBorder()),
                         ),
                         child: _saving
                             ? const SizedBox(

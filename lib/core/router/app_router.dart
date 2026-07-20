@@ -5,9 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/device_management_bloc.dart'; 
 import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/auth/presentation/screens/splash_screen.dart'; 
-import '../../features/auth/presentation/screens/change_password_page.dart'; 
+import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/auth/presentation/screens/change_password_page.dart';
+import '../../features/auth/presentation/screens/device_management_screen.dart'; 
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/clients/presentation/screens/clients_screen.dart';
 import '../../features/clients/presentation/screens/client_detail_screen.dart';
@@ -17,7 +19,7 @@ import '../../features/config/data/repositories/config_repository.dart';
 import '../../features/config/presentation/bloc/config_bloc.dart';
 import '../../features/engineers/presentation/bloc/engineers_bloc.dart';
 import '../../features/engineers/data/repositories/engineers_repository.dart';
-import '../../features/engineers/presentation/screens/engineers_screen.dart'; // Added Import for Engineers Directory Screen
+import '../../features/engineers/presentation/screens/engineers_screen.dart';
 import '../shell/app_shell.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
@@ -28,59 +30,67 @@ final GlobalKey<NavigatorState> _shellNavigatorKey =
 GoRouter buildRouter(AuthBloc authBloc) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/', 
+    initialLocation: '/',
     refreshListenable: GoRouterAuthNotifier(authBloc),
     redirect: (context, state) {
       final auth = authBloc.state;
       final isLoggedIn = auth is AuthAuthenticated;
+      final isInitialBoot = auth is AuthInitial || auth is AuthLoading;
+      
       final isSplash = state.matchedLocation == '/';
       final isLoggingIn = state.matchedLocation == '/login';
 
-      // 1. Allow the splash screen route to remain on-screen during boot orchestration//[cite: 8]
-      if (isSplash) return null;//[cite: 8]
+      // 1. Hold on the splash screen ONLY while the session integrity validation is checking
+      if (isInitialBoot) {
+        return isSplash ? null : '/';
+      }
 
-      // 2. Standard authentication security layout gates//[cite: 8]
-      if (!isLoggedIn && !isLoggingIn) return '/login';//[cite: 8]
-      if (isLoggedIn && isLoggingIn) return '/dashboard';//[cite: 8]
+      // 2. Cold-boot completion routing resolution from Splash Screen
+      if (isSplash) {
+        return isLoggedIn ? '/dashboard' : '/login';
+      }
+
+      // 3. Standard active runtime security layer gates
+      if (!isLoggedIn && !isLoggingIn) return '/login';
+      if (isLoggedIn && isLoggingIn) return '/dashboard';
       
-      return null;//[cite: 8]
+      return null;
     },
     routes: [
-      // Splash Route Entry//[cite: 8]
       GoRoute(
         path: '/',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const SplashScreen(),//[cite: 8]
+        builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
         path: '/login',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const LoginScreen(),//[cite: 8]
+        builder: (context, state) => const LoginScreen(),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) => AppShell(child: child),//[cite: 8]
+        builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(
             path: '/dashboard',
             pageBuilder: (context, state) => _noTransition(
               const DashboardScreen(),
               state.pageKey,
-            ),//[cite: 8]
+            ),
           ),
           GoRoute(
             path: '/clients',
             pageBuilder: (context, state) => _noTransition(
               const ClientsScreen(),
               state.pageKey,
-            ),//[cite: 8]
+            ),
             routes: [
               GoRoute(
                 path: ':clientId',
                 parentNavigatorKey: _rootNavigatorKey,
                 builder: (context, state) => ClientDetailScreen(
                   clientId: state.pathParameters['clientId']!,
-                ),//[cite: 8]
+                ),
                 routes: [
                   GoRoute(
                     path: 'machine/:machineId',
@@ -94,17 +104,17 @@ GoRouter buildRouter(AuthBloc authBloc) {
                             create: (_) => MachinesBloc(
                               repository: context.read(),
                             ),
-                          ),//[cite: 8]
+                          ),
                           BlocProvider(
                             create: (_) => EngineersBloc(
                               repository: context.read<EngineersRepository>(),
                             ),
-                          ),//[cite: 8]
+                          ),
                           BlocProvider(
                             create: (_) => ConfigBloc(
                               repository: context.read<ConfigRepository>(),
                             )..add(ConfigLoadRequested()),
-                          ),//[cite: 8]
+                          ),
                         ],
                         child: MachineDetailScreen(
                           machineId: machineId,
@@ -118,7 +128,6 @@ GoRouter buildRouter(AuthBloc authBloc) {
             ],
           ),
           
-          // ── Engineers Directory Screen Route ─────────────────────────────
           GoRoute(
             path: '/engineers',
             pageBuilder: (context, state) => _noTransition(
@@ -127,20 +136,30 @@ GoRouter buildRouter(AuthBloc authBloc) {
             ),
           ),
 
-          // ── Secure Password Custom Update Route Layer ───────────────────
           GoRoute(
             path: '/change-password',
             pageBuilder: (context, state) => _noTransition(
               const ChangePasswordPage(),
               state.pageKey,
-            ),//[cite: 8]
+            ),
+          ),
+
+          GoRoute(
+            path: '/device-management',
+            pageBuilder: (context, state) => _noTransition(
+              BlocProvider(
+                create: (context) => DeviceManagementBloc(context.read()),
+                child: const DeviceManagementScreen(),
+              ),
+              state.pageKey,
+            ),
           ),
         ],
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(child: Text('Page not found: ${state.error}')),
-    ),//[cite: 8]
+    ),
   );
 }
 
@@ -149,11 +168,11 @@ Page<dynamic> _noTransition(Widget child, ValueKey<String> key) {
     key: key,
     child: child,
     transitionsBuilder: (_, __, ___, child) => child,
-  );//[cite: 8]
+  );
 }
 
 class GoRouterAuthNotifier extends ChangeNotifier {
   GoRouterAuthNotifier(AuthBloc bloc) {
-    bloc.stream.listen((_) => notifyListeners());//[cite: 8]
+    bloc.stream.listen((_) => notifyListeners());
   }
 }
