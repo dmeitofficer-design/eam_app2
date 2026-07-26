@@ -96,7 +96,7 @@ class _AddMachinePageState extends State<AddMachinePage> {
   final List<MapEntry<TextEditingController, TextEditingController>> _customFields = [];
 
   late DateTime _installDate = widget.existingMachine?.installationDate ?? DateTime.now();
-  late int _warrantyMonths = widget.existingMachine?.warrantyPeriod ?? 24;
+  late int _warrantyMonths = widget.existingMachine?.warrantyPeriod ?? 12;
 
   final List<_PartRow> _parts = [];
   String? _pdfFileName;
@@ -145,8 +145,8 @@ class _AddMachinePageState extends State<AddMachinePage> {
       });
     }
 
-    if (_ipCtrls.isEmpty) {
-      _ipCtrls.add(TextEditingController());
+if (_ipCtrls.isEmpty) {
+      _ipCtrls.add(TextEditingController(text: '192.168.8.188'));
     }
   }
 
@@ -696,12 +696,15 @@ class _AddMachinePageState extends State<AddMachinePage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: () => setState(() => _ipCtrls.add(TextEditingController())),
-                        icon: const Icon(Icons.add_rounded, size: 16),
-                        label: const Text('Add IP'),
-                        style: TextButton.styleFrom(foregroundColor: AppColors.accent, visualDensity: VisualDensity.compact),
-                      ),
+                    TextButton.icon(
+  onPressed: () => setState(() => _ipCtrls.add(TextEditingController(text: '192.168.8.188'))),
+  icon: const Icon(Icons.add_rounded, size: 16),
+  label: const Text('Add IP'),
+  style: TextButton.styleFrom(
+    foregroundColor: AppColors.accent, 
+    visualDensity: VisualDensity.compact,
+  ),
+),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -709,43 +712,60 @@ class _AddMachinePageState extends State<AddMachinePage> {
                   const SizedBox(height: AppSpacing.md),
                   _FormCard(
                     children: [
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _ipCtrls.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: _Field(
-                                    label: 'IP Address #${index + 1}',
-                                    child: TextFormField(decoration: InputDecoration(hintText: 'e.g. 192.168.1.${50 + index}'), controller: _ipCtrls[index]),
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.xs),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: IconButton(
-                                    onPressed: () => setState(() {
-                                      if (_ipCtrls.length > 1) {
-                                        _ipCtrls[index].dispose();
-                                        _ipCtrls.removeAt(index);
-                                      } else {
-                                        _ipCtrls[0].clear();
-                                      }
-                                    }),
-                                    icon: const Icon(Icons.remove_circle_rounded),
-                                    color: AppColors.error,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+              ListView.builder(
+  shrinkWrap: true,
+  physics: const NeverScrollableScrollPhysics(),
+  itemCount: _ipCtrls.length,
+  itemBuilder: (context, index) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: _Field(
+              label: 'IP Address #${index + 1}',
+              child: TextFormField(
+                controller: _ipCtrls[index],
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  hintText: '192.168.8.188',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return null;
+                  // Optional regex check for valid IP format
+                  final ipRegex = RegExp(
+                    r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',
+                  );
+                  if (!ipRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid IP address';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: IconButton(
+              onPressed: () => setState(() {
+                if (_ipCtrls.length > 1) {
+                  _ipCtrls[index].dispose();
+                  _ipCtrls.removeAt(index);
+                } else {
+                  _ipCtrls[0].clear();
+                }
+              }),
+              icon: const Icon(Icons.remove_circle_rounded),
+              color: AppColors.error,
+            ),
+          ),
+        ],
+      ),
+    );
+  },
+)
                     ],
                   ),
 
@@ -892,8 +912,8 @@ class _AddMachinePageState extends State<AddMachinePage> {
               children: [
                 _Field(label: 'AE Title', child: TextFormField(controller: _printerAeCtrl, decoration: const InputDecoration(hintText: 'e.g. DRYPIX_PRINTER'))),
                 if (isMobile) ...[
-                  _Field(label: 'IP Address 1', child: TextFormField(controller: _printerIp1Ctrl, decoration: const InputDecoration(hintText: '192.168.1.10'))),
-                  _Field(label: 'IP Address 2', child: TextFormField(controller: _printerIp2Ctrl, decoration: const InputDecoration(hintText: '192.168.1.11'))),
+                  _Field(label: 'IP Address 1', child: TextFormField(controller: _printerIp1Ctrl, decoration: const InputDecoration(hintText: '192.168.8.188'))),
+                  _Field(label: 'IP Address 2', child: TextFormField(controller: _printerIp2Ctrl, decoration: const InputDecoration(hintText: '192.168.8.188'))),
                   _Field(label: 'Port', child: TextFormField(controller: _printerPortCtrl, decoration: const InputDecoration(hintText: 'e.g. 5040'))),
                   _Field(label: 'PC Version', child: TextFormField(controller: _printerPcVerCtrl, decoration: const InputDecoration(hintText: 'v2.1.0'))),
                   _Field(label: 'MB Version', child: TextFormField(controller: _printerMbVerCtrl, decoration: const InputDecoration(hintText: 'v1.04'))),
@@ -901,9 +921,9 @@ class _AddMachinePageState extends State<AddMachinePage> {
                 ] else ...[
                   Row(
                     children: [
-                      Expanded(child: _Field(label: 'IP Address 1', child: TextFormField(controller: _printerIp1Ctrl, decoration: const InputDecoration(hintText: '192.168.1.10')))),
+                      Expanded(child: _Field(label: 'IP Address 1', child: TextFormField(controller: _printerIp1Ctrl, decoration: const InputDecoration(hintText: '192.168.8.188')))),
                       const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: _Field(label: 'IP Address 2', child: TextFormField(controller: _printerIp2Ctrl, decoration: const InputDecoration(hintText: '192.168.1.11')))),
+                      Expanded(child: _Field(label: 'IP Address 2', child: TextFormField(controller: _printerIp2Ctrl, decoration: const InputDecoration(hintText: '192.168.8.188')))),
                     ],
                   ),
                   Row(

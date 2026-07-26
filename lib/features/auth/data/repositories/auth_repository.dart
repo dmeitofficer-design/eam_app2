@@ -14,15 +14,11 @@ class AuthRepository {
 
   User? get currentUser => _client.auth.currentUser;
 
-  // 🌟 Updated to accept platform string to resolve duplicate session tracking
-// 🌟 Updated to accept platform string with correct Supabase options class
-// 🌟 Updated to resolve compilation errors and guarantee session metadata updates
   Future<UserProfile?> signIn({
     required String email,
     required String password,
     required String platform,
   }) async {
-    // 1. Authenticate the user safely using standard credentials
     final response = await _client.auth.signInWithPassword(
       email: email,
       password: password,
@@ -30,8 +26,6 @@ class AuthRepository {
 
     if (response.user == null) return null;
 
-    // 2. Immediately stamp the hardware platform into the user's metadata.
-    // This forces Supabase to record the distinct platform signature for this session.
     await _client.auth.updateUser(
       UserAttributes(
         data: {
@@ -64,14 +58,29 @@ class AuthRepository {
     }
   }
 
+  /// Changes password after re-authenticating the user with currentPassword
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    if (_client.auth.currentUser == null) {
+    final user = _client.auth.currentUser;
+    if (user == null || user.email == null) {
       throw const AuthException('No active user session detected.');
     }
 
+    // 1. Validate current password by attempting re-authentication
+    try {
+      await _client.auth.signInWithPassword(
+        email: user.email!,
+        password: currentPassword,
+      );
+    } on AuthException {
+      throw const AuthException('Incorrect current password. Please try again.');
+    } catch (e) {
+      throw AuthException('Failed to verify current password: ${e.toString()}');
+    }
+
+    // 2. Proceed with updating the password only if re-authentication succeeded
     await _client.auth.updateUser(
       UserAttributes(
         password: newPassword,
@@ -83,11 +92,9 @@ class AuthRepository {
     await _client.auth.signOut();
   }
 
-  // 🌟 Updated to thoroughly validate local storage session integrity on app launch
   Future<UserProfile?> getProfile() async {
     final session = _client.auth.currentSession;
     
-    // Check if the current session token exists and hasn't completely expired
     if (session == null || session.isExpired) {
       return null;
     }
@@ -105,10 +112,9 @@ class AuthRepository {
   }
 
   // ==========================================
-  // NEW SESSION MANAGEMENT CAPABILITIES
+  // SESSION MANAGEMENT
   // ==========================================
 
-  /// Approach 1: Global Sign Out for all OTHER active devices
   Future<void> logOutOtherDevices() async {
     if (_client.auth.currentUser == null) {
       throw const AuthException('No active user session detected.');
@@ -120,7 +126,6 @@ class AuthRepository {
     }
   }
 
-  /// Approach 2: Fetch the concurrent sessions list for the logged-in user
   Future<List<Map<String, dynamic>>> fetchActiveSessions() async {
     if (_client.auth.currentUser == null) {
       throw const AuthException('No active user session detected.');
@@ -135,7 +140,6 @@ class AuthRepository {
     }
   }
 
-  /// Approach 2: Evict/terminate a specific device session by its targeted ID
   Future<void> removeSession(String sessionId) async {
     if (_client.auth.currentUser == null) {
       throw const AuthException('No active user session detected.');

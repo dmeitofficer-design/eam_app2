@@ -87,6 +87,16 @@ class _AddClientViewState extends State<_AddClientView> {
       text: widget.existingClient?.contactPersonDesignation ?? '');
   late final _contactPhoneCtrl = TextEditingController(
       text: widget.existingClient?.contactPersonPhone ?? '');
+      final List<String> _designationOptions = const [
+  'Director, Medical',
+  'Managing Director',
+  'Consultant Radiologist',
+  'Head of Radiology',
+  'Biomedical Engineer',
+  'Chief Medical Officer',
+  'Manager, Purchase',
+  'Senior Executive, Procurement',
+];
 
   // ── Machine fields (only shown for new client) ───────────
   bool _addMachine = false;
@@ -99,7 +109,7 @@ class _AddClientViewState extends State<_AddClientView> {
   List<String> _selectedEngineers = [];
 
   DateTime _installDate = DateTime.now();
-  int _warrantyMonths = 24;
+  int _warrantyMonths = 12;
 
   // Toggle state to conditionally reveal PC hardware fields
   bool _showPcConfig = false;
@@ -560,15 +570,70 @@ class _AddClientViewState extends State<_AddClientView> {
                             ),
                           ),
                           right: _Field(
-                            label: 'Designation',
-                            child: TextFormField(
-                              controller: _contactDesigCtrl,
-                              decoration: const InputDecoration(
-                                hintText: 'Director, Medical',
-                              ),
-                              validator: _required,
-                            ),
-                          ),
+  label: 'Designation',
+  child: Autocomplete<String>(
+    initialValue: TextEditingValue(text: _contactDesigCtrl.text),
+    optionsBuilder: (TextEditingValue textEditingValue) {
+      if (textEditingValue.text.isEmpty) {
+        return _designationOptions;
+      }
+      return _designationOptions.where((option) =>
+          option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+    },
+    onSelected: (String selection) {
+      _contactDesigCtrl.text = selection;
+    },
+    optionsViewBuilder: (context, onSelected, options) {
+      return Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          elevation: 4,
+          borderRadius: AppRadius.card,
+          color: AppColors.surface2,
+          child: Container(
+            constraints: const BoxConstraints(
+              maxHeight: 200,
+              maxWidth: 300,
+            ),
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              itemCount: options.length,
+              itemBuilder: (BuildContext context, int index) {
+                final String option = options.elementAt(index);
+                return ListTile(
+                  dense: true,
+                  title: Text(
+                    option,
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
+                  onTap: () => onSelected(option),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+    },
+    fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+      // Sync changes from local Autocomplete controller to your form controller
+      textEditingController.addListener(() {
+        _contactDesigCtrl.text = textEditingController.text;
+      });
+
+      return TextFormField(
+        controller: textEditingController,
+        focusNode: focusNode,
+        decoration: const InputDecoration(
+          hintText: 'Select or type designation',
+          suffixIcon: Icon(Icons.arrow_drop_down_rounded, size: 24),
+        ),
+        style: TextStyle(color: AppColors.textPrimary),
+        validator: _required,
+      );
+    },
+  ),
+),
                         ),
                         _Field(
                           label: 'Phone Number',
