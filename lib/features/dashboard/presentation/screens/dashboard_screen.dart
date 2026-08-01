@@ -376,6 +376,7 @@ class _AnalyticsGrid extends StatelessWidget {
         value: analytics.totalClients.toString(),
         icon: Icons.local_hospital_rounded,
         sublabel: 'Hospital accounts',
+        routePath: '/clients', 
       ),
       _Metric(
         label: AppStrings.activeBrands,

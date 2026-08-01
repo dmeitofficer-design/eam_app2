@@ -314,8 +314,8 @@ class _ClientProfileCard extends StatelessWidget {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              _Badge(label: client.division.label),
-              _Badge(label: client.facilityType.label, accent: true),
+              _Badge(label: client.division.label, accent: true),
+              _Badge(label: client.facilityType.label),
               if (client.genre.isNotEmpty)
                 _Badge(label: client.genre, color: AppColors.surface3),
             ],
