@@ -1,8 +1,6 @@
-// lib/features/auth/data/models/user_profile.dart
-
 import 'package:equatable/equatable.dart';
 
-enum AppRole { admin, user }
+enum AppRole { superAdmin, admin, user }
 
 class UserProfile extends Equatable {
   final String id;
@@ -17,14 +15,36 @@ class UserProfile extends Equatable {
     required this.createdAt,
   });
 
-  bool get isAdmin => role == AppRole.admin;
+  /// True for both admin and superAdmin (grants UI access to management pages)
+  bool get isAdmin => role == AppRole.admin || role == AppRole.superAdmin;
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
-        id: json['id'] as String,
-        fullName: json['full_name'] as String?,
-        role: json['role'] == 'admin' ? AppRole.admin : AppRole.user,
-        createdAt: DateTime.parse(json['created_at'] as String),
-      );
+  /// True ONLY for superAdmin (used to gate delete actions)
+  bool get isSuperAdmin => role == AppRole.superAdmin;
+  bool get canDelete => role == AppRole.superAdmin;
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final roleStr = json['role'] as String?;
+    AppRole parsedRole;
+
+    switch (roleStr?.toLowerCase()) {
+      case 'super_admin':
+      case 'superadmin':
+        parsedRole = AppRole.superAdmin;
+        break;
+      case 'admin':
+        parsedRole = AppRole.admin;
+        break;
+      default:
+        parsedRole = AppRole.user;
+    }
+
+    return UserProfile(
+      id: json['id'] as String,
+      fullName: json['full_name'] as String?,
+      role: parsedRole,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
 
   @override
   List<Object?> get props => [id, fullName, role];

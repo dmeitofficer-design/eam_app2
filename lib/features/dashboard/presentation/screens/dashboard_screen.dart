@@ -7,11 +7,13 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/update_service.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../../data/models/dashboard_analytics.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/presentation/widgets/developer_footer.dart';
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
   @override
@@ -23,6 +25,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     context.read<DashboardBloc>().add(const DashboardFetchRequested());
+    
+    // Check for updates after the first frame finishes rendering
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAppUpdate();
+    });
+  }
+
+  Future<void> _checkAppUpdate() async {
+    if (!mounted) return;
+
+    final updateInfo = await UpdateService().checkForUpdates();
+
+    if (updateInfo != null && updateInfo.hasUpdate && mounted) {
+      await showDialog(
+        context: context,
+        barrierDismissible: !updateInfo.isMandatory,
+        builder: (dialogContext) => PopScope(
+          canPop: !updateInfo.isMandatory,
+          child: AlertDialog(
+            title: Text('Update Available (${updateInfo.latestVersion})'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(updateInfo.releaseNotes ?? 'A new version of DME CM is available.'),
+                if (updateInfo.isMandatory) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'This update is required to continue using the app.',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              if (!updateInfo.isMandatory)
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Later'),
+                ),
+              ElevatedButton(
+                onPressed: () => UpdateService.launchUpdateUrl(updateInfo.downloadUrl),
+                child: const Text('Update Now'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   void _toggleTheme(BuildContext context) {
@@ -120,7 +171,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const Divider(height: 1),
                     const SizedBox(height: AppSpacing.sm),
                     
-                    // ── Theme Mode Option ─────────────────────────────────
                     ListTile(
                       dense: true,
                       leading: Icon(
@@ -145,7 +195,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     
-                    // ── Change Password Option ─────────────────────────────
                     ListTile(
                       dense: true,
                       leading: Icon(Icons.lock_reset_rounded, color: theme.colorScheme.onSurface.withOpacity(0.7), size: 20),
@@ -187,7 +236,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: AppSpacing.sm),
                     const Divider(height: 1),
                     const SizedBox(height: AppSpacing.md),
-                   const DeveloperFooter(),
+                    const DeveloperFooter(),
                   ],
                 ),
               ),
@@ -235,7 +284,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ── FIXED: Wrapped header layout with Expanded to stop horizontal overflows ──
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,8 +405,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
-
-// ── Analytics Grid ───────────────────────────────────────────
 
 class _AnalyticsGrid extends StatelessWidget {
   const _AnalyticsGrid({
@@ -516,8 +562,6 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-// ── Shimmer ──────────────────────────────────────────────────
-
 class _ShimmerGrid extends StatelessWidget {
   const _ShimmerGrid({required this.isDesktop});
   final bool isDesktop;
@@ -548,8 +592,6 @@ class _ShimmerGrid extends StatelessWidget {
     );
   }
 }
-
-// ── Supporting widgets ───────────────────────────────────────
 
 class _RoleBadge extends StatelessWidget {
   const _RoleBadge({required this.isAdmin});

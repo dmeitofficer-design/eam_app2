@@ -1,10 +1,4 @@
 // lib/features/clients/presentation/screens/machine_config_page.dart
-//
-// Admin-only page. Lets admins add/remove values from three lists:
-//   • Genre / Specialty  (e.g. Radiology, Cardiology)
-//   • Brands             (e.g. DRGEM, GE Healthcare)
-//   • Machine Types      (e.g. X-ray, CT Scanner)
-// These lists power the dropdowns in AddClientPage.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,7 +12,6 @@ class MachineConfigPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // If ConfigBloc isn't already in scope, create one
     return BlocProvider.value(
       value: context.read<ConfigBloc>(),
       child: const _MachineConfigView(),
@@ -119,9 +112,57 @@ class _ConfigSectionState extends State<_ConfigSection> {
       return;
     }
     context.read<ConfigBloc>().add(
-      ConfigOptionAdded(widget.configType, value),
-    );
+          ConfigOptionAdded(widget.configType, value),
+        );
     _ctrl.clear();
+  }
+
+  Future<void> _deleteValue(String value) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface2,
+        title: const Text('Remove option?'),
+        content: Text('Delete "$value" from ${widget.title}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 40),
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final repo = context.read<ConfigRepository>();
+        final items = await repo.getByType(widget.configType);
+        final match = items.where(
+          (e) => e.value.toLowerCase() == value.toLowerCase(),
+        );
+        if (match.isNotEmpty && mounted) {
+          context.read<ConfigBloc>().add(
+                ConfigOptionDeleted(match.first.id),
+              );
+        } else if (mounted) {
+          AppFeedback.error(context, 'Option not found in database.');
+        }
+      } catch (e) {
+        if (mounted) {
+          AppFeedback.error(context, 'Failed to delete option: $e');
+        }
+      }
+    }
   }
 
   @override
@@ -146,8 +187,9 @@ class _ConfigSectionState extends State<_ConfigSection> {
         ),
         const SizedBox(height: AppSpacing.md),
 
-        // Existing values
+        // Existing values with Alternating Row Colors
         Container(
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: AppColors.surface1,
             borderRadius: AppRadius.card,
@@ -167,80 +209,59 @@ class _ConfigSectionState extends State<_ConfigSection> {
                 ...widget.values.asMap().entries.map((entry) {
                   final i = entry.key;
                   final value = entry.value;
-                  return Column(
-                    children: [
-                      ListTile(
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: 0,
-                        ),
-                        leading: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: AppColors.surface2,
-                            borderRadius: BorderRadius.circular(AppRadius.xs),
+                  final isEven = i.isEven;
+
+                  return Container(
+                    // Alternating background colors
+                    color: isEven
+                        ? AppColors.surface1
+                        : AppColors.surface3.withOpacity(0.5),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: 2,
                           ),
-                          child: Center(
-                            child: Text(
-                              '${i + 1}',
-                              style: theme.textTheme.labelSmall,
+                          leading: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: isEven
+                                  ? AppColors.surface2
+                                  : AppColors.surface3.withOpacity(0.5),
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.xs),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${i + 1}',
+                                style: theme.textTheme.labelSmall,
+                              ),
                             ),
                           ),
+                          title: Text(
+                            value,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_rounded, size: 18),
+                            color: AppColors.textTertiary,
+                            tooltip: 'Delete',
+                            onPressed: () => _deleteValue(value),
+                          ),
                         ),
-                        title: Text(value, style: theme.textTheme.bodyMedium),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_rounded, size: 18),
-                          color: AppColors.textTertiary,
-                          tooltip: 'Delete',
-                          onPressed: () async {
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                backgroundColor: AppColors.surface1,
-                                title: const Text('Remove option?'),
-                                content: Text(
-                                  'Delete "$value" from ${widget.title}?',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.error,
-                                      foregroundColor: Colors.white,
-                                      minimumSize: const Size(0, 40),
-                                    ),
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirmed == true && context.mounted) {
-                              // We need the ID — fetch from repo
-                              final repo = context.read<ConfigRepository>();
-                              final items = await repo.getByType(widget.configType);
-                              final match = items.where(
-                                  (e) => e.value.toLowerCase() ==
-                                      value.toLowerCase());
-                              if (match.isNotEmpty && context.mounted) {
-                                context.read<ConfigBloc>().add(
-                                  ConfigOptionDeleted(match.first.id),
-                                );
-                              }
-                            }
-                          },
-                        ),
-                      ),
-                      if (i < widget.values.length - 1)
-                        const Divider(height: 1, indent: 16, endIndent: 16),
-                    ],
+                        if (i < widget.values.length - 1)
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: AppColors.surface2.withOpacity(0.6),
+                          ),
+                      ],
+                    ),
                   );
                 }),
             ],
@@ -248,7 +269,7 @@ class _ConfigSectionState extends State<_ConfigSection> {
         ),
         const SizedBox(height: AppSpacing.sm),
 
-        // Add new row
+        // Add new row input
         Row(
           children: [
             Expanded(

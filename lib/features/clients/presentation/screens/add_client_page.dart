@@ -54,7 +54,7 @@ class AddClientPage extends StatelessWidget {
 // Main form view
 // ─────────────────────────────────────────────────────────────
 
-class _AddClientView extends StatefulWidget {
+class _AddClientView extends StatefulWidget { 
   const _AddClientView({this.existingClient});
   final HospitalClient? existingClient;
 

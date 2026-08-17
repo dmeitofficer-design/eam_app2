@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart'; 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/update_service.dart';
 import '../bloc/auth_bloc.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,17 +19,15 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   
-  // Staggered Animations
   late Animation<double> _logoScale;
   late Animation<double> _logoFade;
   late Animation<Offset> _logoSlide;
-  
   late Animation<double> _loaderFade;
-  
   late Animation<double> _versionFade;
   late Animation<Offset> _versionSlide;
 
   bool _animationCompleted = false;
+  bool _isMandatoryUpdateActive = false;
   String _appVersion = ''; 
 
   @override
@@ -38,62 +37,103 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400), // Slightly longer for staggered elegance
+      duration: const Duration(milliseconds: 1400),
     );
 
-    // 1. Logo & App Title Animation (0% to 60% of total duration)
     _logoFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
-      ),
+      CurvedAnimation(parent: _animationController, curve: const Interval(0.0, 0.6, curve: Curves.easeIn)),
     );
-
     _logoScale = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
-      ),
+      CurvedAnimation(parent: _animationController, curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)),
     );
-
     _logoSlide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
-      ),
+      CurvedAnimation(parent: _animationController, curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic)),
     );
-
-    // 2. Loading Indicator Animation (40% to 80% of total duration)
     _loaderFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.4, 0.8, curve: Curves.easeIn),
-      ),
+      CurvedAnimation(parent: _animationController, curve: const Interval(0.4, 0.8, curve: Curves.easeIn)),
     );
-
-    // 3. Version Info Animation (60% to 100% of total duration)
     _versionFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.6, 1.0, curve: Curves.easeIn),
-      ),
+      CurvedAnimation(parent: _animationController, curve: const Interval(0.6, 1.0, curve: Curves.easeIn)),
     );
-
     _versionSlide = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.6, 1.0, curve: Curves.easeOutCubic),
-      ),
+      CurvedAnimation(parent: _animationController, curve: const Interval(0.6, 1.0, curve: Curves.easeOutCubic)),
     );
 
-    // Execute transitions
-    _animationController.forward().then((_) {
+    // FIX: Keep _animationCompleted = false until AFTER the update check finishes
+    _animationController.forward().then((_) async {
       if (!mounted) return;
+
+      // 1. Run update check FIRST while _animationCompleted is false (blocks BlocListener navigation)
+      final isBlockedByMandatory = await _checkAppUpdate();
+
+      if (!mounted) return;
+
+      // 2. Mark animation completed ONLY AFTER update dialog closes or finishes
       setState(() {
         _animationCompleted = true;
       });
-      _evaluateNavigation(context.read<AuthBloc>().state);
+
+      // 3. Navigate only if not blocked by a mandatory update
+      if (!isBlockedByMandatory) {
+        _evaluateNavigation(context.read<AuthBloc>().state);
+      }
     });
+  }
+
+  Future<bool> _checkAppUpdate() async {
+    if (!mounted) return false;
+    try {
+      final updateInfo = await UpdateService().checkForUpdates();
+
+      if (updateInfo != null && updateInfo.hasUpdate && mounted) {
+        if (updateInfo.isMandatory) {
+          setState(() {
+            _isMandatoryUpdateActive = true;
+          });
+        }
+
+        await showDialog(
+          context: context,
+          barrierDismissible: !updateInfo.isMandatory,
+          builder: (dialogContext) => PopScope(
+            canPop: !updateInfo.isMandatory,
+            child: AlertDialog(
+              title: Text('Update Available (${updateInfo.latestVersion})'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(updateInfo.releaseNotes ?? 'A new version of DME CM is available.'),
+                  if (updateInfo.isMandatory) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'This update is required to continue using the app.',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                if (!updateInfo.isMandatory)
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Later'),
+                  ),
+                ElevatedButton(
+                  onPressed: () => UpdateService.launchUpdateUrl(updateInfo.downloadUrl),
+                  child: const Text('Update Now'),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        return updateInfo.isMandatory;
+      }
+    } catch (e) {
+      debugPrint('SPLASH UPDATE CHECK ERROR: $e');
+    }
+    return false;
   }
 
   Future<void> _loadAppVersion() async {
@@ -114,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   void _evaluateNavigation(AuthState state) {
-    if (!_animationCompleted) return;
+    if (!_animationCompleted || _isMandatoryUpdateActive) return;
 
     if (state is AuthAuthenticated) {
       context.go('/dashboard');
@@ -140,12 +180,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         },
         child: Stack(
           children: [
-            // Centered Brand Focus Group
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo with staggered scale, fade, and upward slide[cite: 6]
                   FadeTransition(
                     opacity: _logoFade,
                     child: ScaleTransition(
@@ -161,27 +199,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
-                  // ── App Title Text ─────────────────────────────────
-               // ── App Title Text ─────────────────────────────────
-FadeTransition(
-  opacity: _logoFade,
-  child: SlideTransition(
-    position: _logoSlide,
-    child: Text(
-      'DME CLIENT MANAGER',
-      style: theme.textTheme.titleMedium?.copyWith(
-        fontFamily: 'Anta', // Reference registered local font family name
-        color: AppColors.accent,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 1.5,
-      ),
-    ),
-  ),
-),
+                  FadeTransition(
+                    opacity: _logoFade,
+                    child: SlideTransition(
+                      position: _logoSlide,
+                      child: Text(
+                        'DME CLIENT MANAGER',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontFamily: 'Anta',
+                          color: AppColors.accent,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  
-                  // Sleek, minimal progress line that fades in right below[cite: 6]
                   FadeTransition(
                     opacity: _loaderFade,
                     child: SizedBox(
@@ -199,8 +232,6 @@ FadeTransition(
                 ],
               ),
             ),
-            
-            // Bottom Version Layer with upward entrance slide[cite: 6]
             if (_appVersion.isNotEmpty)
               Positioned(
                 bottom: 48,

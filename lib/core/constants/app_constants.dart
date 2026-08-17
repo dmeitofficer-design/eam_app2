@@ -33,6 +33,7 @@ class AppStrings {
   static const String availableEngineers = 'Available Engineers';
 
   // Roles
+  static const String roleSuperAdmin = 'super_admin';
   static const String roleAdmin = 'admin';
   static const String roleUser  = 'user';
 }

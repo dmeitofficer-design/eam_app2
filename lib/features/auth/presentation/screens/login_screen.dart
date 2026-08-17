@@ -27,16 +27,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final _regEmailCtrl       = TextEditingController();
   final _regPassCtrl        = TextEditingController();
   final _regConfirmPassCtrl = TextEditingController(); 
-  final _adminEmailCtrl     = TextEditingController();
-  final _adminPassCtrl      = TextEditingController();
+  final _superAdminEmailCtrl = TextEditingController();
+  final _superAdminPassCtrl  = TextEditingController();
   
   bool _obscureRegPass        = true;
   bool _obscureRegConfirmPass = true; 
-  bool _obscureAdminPass      = true;
-  String _selectedRole        = 'user';
+  bool _obscureSuperAdminPass = true;
+  String _selectedRole        = AppStrings.roleUser;
   
-  String _regUserDomain = '@gmail.com';   // Default New User Domain Selector
-  String _adminDomain    = '@gmail.com';   // Default Admin Approver Domain Selector
+  String _regUserDomain    = '@gmail.com';   // Default New User Domain Selector
+  String _superAdminDomain = '@gmail.com';   // Default Super Admin Approver Domain Selector
 
   // List of available domains
   final List<String> _domains = ['@gmail.com', '@dmebd.com', '@yahoo.com'];
@@ -48,8 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _regEmailCtrl.dispose();
     _regPassCtrl.dispose();
     _regConfirmPassCtrl.dispose();
-    _adminEmailCtrl.dispose();
-    _adminPassCtrl.dispose();
+    _superAdminEmailCtrl.dispose();
+    _superAdminPassCtrl.dispose();
     super.dispose();
   }
 
@@ -58,10 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final pass  = _passCtrl.text;
     if (username.isEmpty || pass.isEmpty) return;
 
-    // Combine username with selected domain smoothly
     final fullEmail = '$username$_signInDomain';
-
-    // Capture target execution platform signature
     final currentPlatform = Theme.of(context).platform.toString();
 
     context.read<AuthBloc>().add(
@@ -77,10 +74,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final regUser        = _regEmailCtrl.text.trim();
     final regPass        = _regPassCtrl.text;
     final regConfirmPass = _regConfirmPassCtrl.text;
-    final adminUser      = _adminEmailCtrl.text.trim();
-    final adminPass      = _adminPassCtrl.text;
+    final superAdminUser = _superAdminEmailCtrl.text.trim();
+    final superAdminPass = _superAdminPassCtrl.text;
 
-    if (regUser.isEmpty || regPass.isEmpty || regConfirmPass.isEmpty || adminUser.isEmpty || adminPass.isEmpty) {
+    if (regUser.isEmpty || regPass.isEmpty || regConfirmPass.isEmpty || superAdminUser.isEmpty || superAdminPass.isEmpty) {
       _showErrorSnackBar('Please fill out all fields.');
       return;
     }
@@ -91,15 +88,15 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final fullRegEmail = '$regUser$_regUserDomain';
-    final fullAdminEmail = '$adminUser$_adminDomain';
+    final fullSuperAdminEmail = '$superAdminUser$_superAdminDomain';
 
     context.read<AuthBloc>().add(
       AuthRegisterRequested(
         email: fullRegEmail,
         password: regPass,
         role: _selectedRole,
-        adminEmail: fullAdminEmail,
-        adminPassword: adminPass,
+        adminEmail: fullSuperAdminEmail,
+        adminPassword: superAdminPass,
       ),
     );
   }
@@ -154,6 +151,8 @@ class _LoginScreenState extends State<LoginScreen> {
               _regEmailCtrl.clear();
               _regPassCtrl.clear();
               _regConfirmPassCtrl.clear();
+              _superAdminEmailCtrl.clear();
+              _superAdminPassCtrl.clear();
             });
           }
         },
@@ -287,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ── Layout 2: Admin Validated Registration Form ─────────────────────────
+  // ── Layout 2: Super Admin Validated Registration Form ───────────────────
   Widget _buildCreateAccountForm(ThemeData theme, AuthState state) {
     final isLoading = state is AuthLoading;
 
@@ -298,7 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Text('Create Account', style: theme.textTheme.displaySmall),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Requires valid administrative clearance credentials to register.',
+          'Requires valid super admin clearance credentials to register.',
           style: theme.textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -358,44 +357,44 @@ class _LoginScreenState extends State<LoginScreen> {
         _buildFieldLabel(theme, 'ASSIGNED ACCOUNT ROLE'),
         Row(
           children: [
-            Expanded(child: _buildRoleSegment('user', 'User Access', Icons.visibility_rounded, isLoading)),
+            Expanded(child: _buildRoleSegment(AppStrings.roleUser, 'User Access', Icons.visibility_rounded, isLoading)),
             const SizedBox(width: AppSpacing.sm),
-            Expanded(child: _buildRoleSegment('admin', 'Admin Staff', Icons.shield_rounded, isLoading)),
+            Expanded(child: _buildRoleSegment(AppStrings.roleAdmin, 'Admin Staff', Icons.shield_rounded, isLoading)),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        _buildSectionDivider(theme, 'ADMINISTRATOR AUTHORIZATION'),
+        _buildSectionDivider(theme, 'SUPER ADMIN AUTHORIZATION'),
 
-        _buildFieldLabel(theme, 'APPROVER USERNAME'),
+        _buildFieldLabel(theme, 'SUPER ADMIN USERNAME'),
         TextField(
-          controller: _adminEmailCtrl,
+          controller: _superAdminEmailCtrl,
           enabled: !isLoading,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
           style: theme.textTheme.bodyLarge,
           decoration: InputDecoration(
-            hintText: 'admin',
-            suffixIcon: _buildDomainDropdown(_adminDomain, (newValue) {
-              if (newValue != null) setState(() => _adminDomain = newValue);
+            hintText: 'super.admin',
+            suffixIcon: _buildDomainDropdown(_superAdminDomain, (newValue) {
+              if (newValue != null) setState(() => _superAdminDomain = newValue);
             }, theme),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
 
-        _buildFieldLabel(theme, 'APPROVER PASSWORD'),
+        _buildFieldLabel(theme, 'SUPER ADMIN PASSWORD'),
         TextField(
-          controller: _adminPassCtrl,
+          controller: _superAdminPassCtrl,
           enabled: !isLoading,
-          obscureText: _obscureAdminPass,
+          obscureText: _obscureSuperAdminPass,
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => isLoading ? null : _submitCreateAccount(),
           style: theme.textTheme.bodyLarge,
           decoration: InputDecoration(
             hintText: '••••••••',
             suffixIcon: IconButton(
-              onPressed: () => setState(() => _obscureAdminPass = !_obscureAdminPass),
-              icon: Icon(_obscureAdminPass ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: AppColors.textTertiary, size: 20),
+              onPressed: () => setState(() => _obscureSuperAdminPass = !_obscureSuperAdminPass),
+              icon: Icon(_obscureSuperAdminPass ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: AppColors.textTertiary, size: 20),
             ),
           ),
         ),

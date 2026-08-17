@@ -1,0 +1,48 @@
+name: Build and Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers whenever you push a tag like v1.0.1+19
+
+jobs:
+  build-and-release:
+    name: Build binaries and create release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Build Android APK
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      # Build Windows Executable / MSIX
+      - name: Build Windows App
+        run: flutter build windows --release
+
+      # Create GitHub Release with fixed asset filenames
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/windows/x64/runner/Release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
