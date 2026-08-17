@@ -2,7 +2,7 @@ name: eam_platform
 description: Enterprise Asset Management Platform for Medical Equipment
 
 publish_to: 'none'
-version: 1.0.6+1
+version: 1.0.1+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -32,6 +32,7 @@ dependencies:
 
   # URL Launcher (for invoices)
   url_launcher: ^6.3.2
+  
 
   # File picker (PDF receipt upload)
   file_picker: ^12.0.0-beta.7
@@ -78,7 +79,7 @@ msix_config:
   display_name: "DME Client Manager"
   publisher_display_name: "Md Mehedi Hasan"
   identity_name: "com.dmebd.clientmanager"
-  msix_version: "1.0.0.9"
+  msix_version: "1.0.1.8"
   logo_path: "assets/icons/window_logo.png" # Must be a high-res .png file (400x400px+)
   capabilities: 'internetClient'
   publisher: 'CN=Md Mehedi Hasan, O=DME, C=BD' # Required for generating local installs
