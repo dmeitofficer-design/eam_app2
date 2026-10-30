@@ -54,6 +54,9 @@ class AuthRegisterRequested extends AuthEvent {
 
 class AuthLogoutRequested extends AuthEvent {}
 
+/// Re-checks with the server that the current session has not been revoked.
+class AuthSessionCheckRequested extends AuthEvent {}
+
 class _AuthStateChanged extends AuthEvent {
   final sb.AuthState authState;
   const _AuthStateChanged(this.authState);
@@ -104,15 +107,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthRegisterRequested>(_onRegisterRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
+    on<AuthSessionCheckRequested>(_onSessionCheckRequested);
     on<_AuthStateChanged>(_onAuthStateChanged);
 
     _authSub = _repo.authStateChanges.listen(
       (state) => add(_AuthStateChanged(state)),
     );
+
+    // Sessions terminated from another device stay usable until the access
+    // token expires, so poll the auth server to log out promptly.
+    _sessionCheckTimer = Timer.periodic(
+      _sessionCheckInterval,
+      (_) => add(AuthSessionCheckRequested()),
+    );
   }
+
+  static const _sessionCheckInterval = Duration(minutes: 1);
 
   final AuthRepository _repo;
   late final StreamSubscription _authSub;
+  late final Timer _sessionCheckTimer;
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
@@ -123,8 +137,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         emit(AuthUnauthenticated());
       }
-    } catch (_) {
+    } catch (e) {
+      if (_repo.isSessionRevoked(e)) await _repo.signOutLocally();
       // Gracefully fall back to login on startup failure/offline launch
+      emit(AuthUnauthenticated());
+    }
+  }
+
+  Future<void> _onSessionCheckRequested(
+    AuthSessionCheckRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state is! AuthAuthenticated) return;
+    try {
+      await _repo.validateSession();
+    } catch (e) {
+      // Offline or server hiccup: keep the user logged in and retry later.
+      if (!_repo.isSessionRevoked(e)) return;
+      await _repo.signOutLocally();
       emit(AuthUnauthenticated());
     }
   }
@@ -193,7 +223,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     if (event.authState.event == sb.AuthChangeEvent.signedOut) {
       emit(AuthUnauthenticated());
-    } else if (event.authState.event == sb.AuthChangeEvent.signedIn) {
+    } else if (event.authState.event == sb.AuthChangeEvent.signedIn ||
+        (event.authState.event == sb.AuthChangeEvent.tokenRefreshed &&
+            state is AuthUnauthenticated)) {
+      // tokenRefreshed: a background refresh finished after startup had
+      // already given up on the session, so restore the logged-in state.
       final userId = event.authState.session?.user.id;
       if (userId == null) {
         emit(AuthUnauthenticated());
@@ -215,6 +249,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   @override
   Future<void> close() {
     _authSub.cancel();
+    _sessionCheckTimer.cancel();
     return super.close();
   }
 }

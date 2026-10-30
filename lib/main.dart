@@ -57,7 +57,7 @@ class EamApp extends StatefulWidget {
   State<EamApp> createState() => _EamAppState();
 }
 
-class _EamAppState extends State<EamApp> {
+class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
   late final AuthRepository      _authRepo      = AuthRepository(); //[cite: 6]
   late final ClientsRepository   _clientsRepo   = ClientsRepository(); //[cite: 6]
   late final MachinesRepository  _machinesRepo  = MachinesRepository(); //[cite: 6]
@@ -73,12 +73,23 @@ class _EamAppState extends State<EamApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // 🌟 Safely kick off token validation sequence after initial layout evaluation context is established
     _authBloc.add(AuthStarted());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-validate the session whenever the app returns to the foreground,
+    // e.g. after it was terminated from another device.
+    if (state == AppLifecycleState.resumed) {
+      _authBloc.add(AuthSessionCheckRequested());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authBloc.close(); //[cite: 6]
     super.dispose(); //[cite: 6]
   }
