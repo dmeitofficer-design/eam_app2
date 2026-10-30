@@ -33,6 +33,8 @@ class InstalledMachine extends Equatable {
   final String? invoiceUrl;
   final String? notes;
   final DateTime createdAt;
+  final DateTime? updatedAt;
+  final String? updatedByName;
 
   // PC Configuration Features
   final String? pcCpu;
@@ -89,6 +91,8 @@ class InstalledMachine extends Equatable {
     this.invoiceUrl,
     this.notes,
     required this.createdAt,
+    this.updatedAt,
+    this.updatedByName,
     this.pcCpu,
     this.pcRam,
     this.pcStorage,
@@ -188,6 +192,10 @@ class InstalledMachine extends Equatable {
       invoiceUrl: json['invoice_url'] as String?,
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
+      updatedByName: json['updated_by_name'] as String?,
       
       pcCpu: json['pc_cpu'] as String?,
       pcRam: json['pc_ram'] as String?,
@@ -324,6 +332,8 @@ class InstalledMachine extends Equatable {
         invoiceUrl: invoiceUrl ?? this.invoiceUrl,
         notes: notes ?? this.notes,
         createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt,
+        updatedByName: updatedByName,
         
         pcCpu: pcCpu ?? this.pcCpu,
         pcRam: pcRam ?? this.pcRam,

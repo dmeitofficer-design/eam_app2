@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/update_service.dart';
+import '../../../auth/data/models/user_profile.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../../data/models/dashboard_analytics.dart';
@@ -87,7 +88,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _showProfilePopup(BuildContext context, dynamic profile) {
+  void _showProfilePopup(BuildContext context, UserProfile profile) {
     final authBloc = context.read<AuthBloc>();
     final currentUser = Supabase.instance.client.auth.currentUser;
     final String userEmail = currentUser?.email ?? 'User Account';
@@ -162,7 +163,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      profile.isAdmin ? 'Administrator Access' : 'View-Only Access',
+                      '${profile.displayName} · ${profile.role.label}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                       ),
@@ -195,6 +196,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     
+                    ListTile(
+                      dense: true,
+                      leading: Icon(Icons.person_rounded, color: theme.colorScheme.onSurface.withValues(alpha: 0.7), size: 20),
+                      title: Text(
+                        'My Profile',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      onTap: () {
+                        Navigator.of(bottomSheetContext).pop();
+                        context.go('/profile');
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+
                     ListTile(
                       dense: true,
                       leading: Icon(Icons.lock_reset_rounded, color: theme.colorScheme.onSurface.withValues(alpha: 0.7), size: 20),
@@ -324,7 +345,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             const SizedBox(width: AppSpacing.xs),
                             GestureDetector(
                               onTap: () => _showProfilePopup(context, profile),
-                              child: _RoleBadge(isAdmin: profile.isAdmin),
+                              child: _RoleBadge(isAdmin: profile.isAdmin, label: profile.role.label.toUpperCase()),
                             ),
                           ],
                         ],
@@ -382,9 +403,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _InfoCard(
                     icon: Icons.shield_rounded,
                     title: 'Role-Based Access',
-                    subtitle: profile?.isAdmin == true
-                        ? 'You have Admin access — full read/write.'
-                        : 'You have View-Only access — read only.',
+                    subtitle: _accessDescription(profile?.role),
                     accent: profile?.isAdmin == true
                         ? AppColors.accent
                         : theme.colorScheme.onSurface.withValues(alpha: 0.4),
@@ -593,9 +612,17 @@ class _ShimmerGrid extends StatelessWidget {
   }
 }
 
+String _accessDescription(AppRole? role) => switch (role) {
+      AppRole.superAdmin => 'Super Admin — full access, including deleting data and managing all users.',
+      AppRole.admin => 'Admin — full read/write, approvals and user management.',
+      AppRole.dataEntry => 'Data Entry — view clients and machines, and submit new data.',
+      _ => 'Viewer — clients, machines and warranty, read only.',
+    };
+
 class _RoleBadge extends StatelessWidget {
-  const _RoleBadge({required this.isAdmin});
+  const _RoleBadge({required this.isAdmin, required this.label});
   final bool isAdmin;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -618,7 +645,7 @@ class _RoleBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            isAdmin ? 'ADMIN' : 'VIEW ONLY',
+            label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: isAdmin ? const Color.fromARGB(255, 241, 248, 255) : theme.colorScheme.onSurface.withValues(alpha: 0.6),
               letterSpacing: 1.0,

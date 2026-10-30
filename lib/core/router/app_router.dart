@@ -10,6 +10,8 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/change_password_page.dart';
 import '../../features/auth/presentation/screens/device_management_screen.dart'; 
+import '../../features/auth/presentation/screens/profile_screen.dart';
+import '../../features/users/presentation/screens/users_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/clients/presentation/screens/clients_screen.dart';
 import '../../features/clients/presentation/screens/client_detail_screen.dart';
@@ -53,7 +55,15 @@ GoRouter buildRouter(AuthBloc authBloc) {
       // 3. Standard active runtime security layer gates
       if (!isLoggedIn && !isLoggingIn) return '/login';
       if (isLoggedIn && isLoggingIn) return '/dashboard';
-      
+
+      // 4. Role / profile gates
+      if (auth is AuthAuthenticated) {
+        final location = state.matchedLocation;
+        // Every change is attributed to a name, so ask for one first.
+        if (!auth.profile.hasName && location != '/profile') return '/profile';
+        if (location.startsWith('/users') && !auth.profile.isAdmin) return '/dashboard';
+      }
+
       return null;
     },
     routes: [
@@ -140,6 +150,22 @@ GoRouter buildRouter(AuthBloc authBloc) {
             path: '/change-password',
             pageBuilder: (context, state) => _noTransition(
               const ChangePasswordPage(),
+              state.pageKey,
+            ),
+          ),
+
+          GoRoute(
+            path: '/profile',
+            pageBuilder: (context, state) => _noTransition(
+              const ProfileScreen(),
+              state.pageKey,
+            ),
+          ),
+
+          GoRoute(
+            path: '/users',
+            pageBuilder: (context, state) => _noTransition(
+              const UsersScreen(),
               state.pageKey,
             ),
           ),

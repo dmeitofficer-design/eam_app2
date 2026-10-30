@@ -37,25 +37,41 @@ class AuthRepository {
     return _fetchProfile(response.user!.id);
   }
 
-  Future<void> registerWithAdminApproval({
-    required String email,
-    required String password,
-    required String role,
-    required String adminEmail,
-    required String adminPassword,
-  }) async {
-    final response = await _client.auth.signUp(
-      email: email,
-      password: password,
-      emailRedirectTo: 'medtrack://login', 
-      data: {
-        'role': role, 
-      },
-    );
+  // ==========================================
+  // PASSWORD RESET (email code)
+  // ==========================================
 
-    if (response.user == null) {
-      throw const AuthException('Registration failed: Could not generate a valid account.');
+  /// Emails a one-time recovery code. The Supabase "Reset Password" email
+  /// template must include {{ .Token }} for the code to appear.
+  Future<void> sendPasswordResetCode(String email) async {
+    await _client.auth.resetPasswordForEmail(email);
+  }
+
+  /// Signs the user in with the emailed code, then sets [newPassword].
+  Future<void> resetPasswordWithCode({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: code,
+      type: OtpType.recovery,
+    );
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  /// Saves the signed-in user's display name.
+  Future<UserProfile> updateFullName(String fullName) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const AuthException('No active user session detected.');
     }
+    await _client
+        .from(AppConstants.tableProfiles)
+        .update({'full_name': fullName.trim()})
+        .eq('id', user.id);
+    return _fetchProfile(user.id);
   }
 
   /// Changes password after re-authenticating the user with currentPassword
@@ -151,7 +167,7 @@ class AuthRepository {
     }
   }
 
-  Future<UserProfile?> _fetchProfile(String userId) async {
+  Future<UserProfile> _fetchProfile(String userId) async {
     final data = await _client
         .from(AppConstants.tableProfiles)
         .select()

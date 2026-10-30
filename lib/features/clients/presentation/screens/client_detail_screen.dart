@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../../../core/widgets/error_state_widget.dart';
+import '../../../../shared/widgets/updated_by_label.dart';
 import '../../../machines/data/models/installed_machine.dart';
 import '../../../machines/presentation/bloc/machines_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -175,6 +176,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final isDesktop = width >= AppConstants.tabletBreakpoint;
     final authState = context.watch<AuthBloc>().state;
     final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
+    final canDelete = authState is AuthAuthenticated && authState.profile.canDelete;
 
     return Scaffold(
       backgroundColor: AppColors.surface0,
@@ -188,19 +190,19 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          if (isAdmin && _client != null) ...[
+          if (isAdmin && _client != null)
             IconButton(
               icon: const Icon(Icons.edit_rounded),
               tooltip: 'Edit client',
               onPressed: _openEdit,
             ),
+          if (canDelete && _client != null)
             IconButton(
               icon: const Icon(Icons.delete_rounded),
               tooltip: 'Delete client',
               color: AppColors.error,
               onPressed: _deleteClient,
             ),
-          ],
         ],
       ),
       body: _loadingClient
@@ -376,6 +378,8 @@ class _ClientProfileCard extends StatelessWidget {
                   )
                 : null,
           ),
+          const SizedBox(height: AppSpacing.md),
+          UpdatedByLabel(name: client.updatedByName, at: client.updatedAt),
         ],
       ),
     );

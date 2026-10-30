@@ -12,11 +12,11 @@ class MachinesRepository {
 
   final SupabaseClient _client;
 
-  /// Fetches machines and joins the engineers via the junction table.
+  /// Fetches machines with their engineers and parts (see the view).
   Future<List<InstalledMachine>> getMachinesByHospital(String hospitalId) async {
     final data = await _client
-        .from(AppConstants.tableInstalledMachines)
-        .select('*, machine_engineers(engineers(*)), machine_parts(*)')
+        .from(AppConstants.viewInstalledMachines)
+        .select()
         .eq('hospital_id', hospitalId)
         .order('installation_date', ascending: false);
     return (data as List<dynamic>)
@@ -24,11 +24,11 @@ class MachinesRepository {
         .toList();
   }
 
-  /// Fetches a single machine and joins the engineers via the junction table.
+  /// Fetches a single machine with its engineers and parts (see the view).
   Future<InstalledMachine> getMachineById(String machineId) async {
     final data = await _client
-        .from(AppConstants.tableInstalledMachines)
-        .select('*, machine_engineers(engineers(*)), machine_parts(*)')
+        .from(AppConstants.viewInstalledMachines)
+        .select()
         .eq('id', machineId)
         .single();
     return InstalledMachine.fromJson(data);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../shared/widgets/updated_by_label.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -109,6 +110,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
     final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
+    final canDelete = authState is AuthAuthenticated && authState.profile.canDelete;
 
     return Scaffold(
       backgroundColor: AppColors.surface0,
@@ -146,19 +148,19 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                 title: Text('${state.machine.brand} ${state.machine.model}',
                     overflow: TextOverflow.ellipsis,),
                 actions: [
-                  if (isAdmin) ...[
+                  if (isAdmin)
                     IconButton(
                       icon: const Icon(Icons.edit_rounded),
                       tooltip: 'Edit machine',
                       onPressed: () => _openEdit(state.machine),
                     ),
+                  if (canDelete)
                     IconButton(
                       icon: const Icon(Icons.delete_rounded),
                       tooltip: 'Delete machine',
                       color: AppColors.error,
                       onPressed: () => _deleteMachine(state.machine),
                     ),
-                  ],
                 ],
               ),
               body: _MachineDetailBody(
@@ -252,6 +254,11 @@ class _MachineDetailBody extends StatelessWidget {
                   onView: onViewInvoice,
                 ),
 
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerRight,
+                child: UpdatedByLabel(name: machine.updatedByName, at: machine.updatedAt),
+              ),
               const SizedBox(height: AppSpacing.xl),
             ],
           ),

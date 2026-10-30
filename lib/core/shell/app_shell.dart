@@ -40,29 +40,36 @@ class AppShell extends StatelessWidget {
     ),
   ];
 
-  int _selectedIndex(BuildContext context) {
+  static const _usersDestination = _NavDest(
+    icon: Icons.manage_accounts_rounded,
+    label: 'Users',
+    path: '/users',
+  );
+
+  int _selectedIndex(BuildContext context, List<_NavDest> destinations) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/clients')) return 1;
-    if (location.startsWith('/engineers')) return 2;
-    if (location.startsWith('/device-management')) return 3;
-    return 0;
+    final idx = destinations.indexWhere((d) => location.startsWith(d.path));
+    return idx < 0 ? 0 : idx;
   }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= AppConstants.tabletBreakpoint;
-    final selectedIdx = _selectedIndex(context);
+    final authState = context.watch<AuthBloc>().state;
+    final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
+    final destinations = [..._destinations, if (isAdmin) _usersDestination];
+    final selectedIdx = _selectedIndex(context, destinations);
 
     if (isDesktop) {
       return _DesktopShell(
-        destinations: _destinations,
+        destinations: destinations,
         selectedIndex: selectedIdx,
         child: child,
       );
     } else {
       return _MobileShell(
-        destinations: _destinations,
+        destinations: destinations,
         selectedIndex: selectedIdx,
         child: child,
       );
@@ -254,12 +261,12 @@ class _DesktopShellState extends State<_DesktopShell> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                profile.fullName ?? 'User',
+                                profile.displayName,
                                 style: theme.textTheme.labelMedium,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                profile.role.name.toUpperCase(),
+                                profile.role.label.toUpperCase(),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: const Color.fromARGB(255, 99, 198, 255),
                                   letterSpacing: 0.8,
@@ -278,7 +285,9 @@ class _DesktopShellState extends State<_DesktopShell> {
                           tooltip: 'Account Options',
                           position: PopupMenuPosition.under,
                           onSelected: (value) {
-                            if (value == 'password') {
+                            if (value == 'profile') {
+                              context.go('/profile');
+                            } else if (value == 'password') {
                               context.go('/change-password');
                             } else if (value == 'security') {
                               context.go('/device-management');
@@ -287,6 +296,16 @@ class _DesktopShellState extends State<_DesktopShell> {
                             }
                           },
                           itemBuilder: (BuildContext context) => [
+                            const PopupMenuItem<String>(
+                              value: 'profile',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.person_rounded, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('My Profile'),
+                                ],
+                              ),
+                            ),
                             const PopupMenuItem<String>(
                               value: 'password',
                               child: Row(

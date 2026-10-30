@@ -17,6 +17,7 @@ import 'features/machines/data/repositories/machines_repository.dart';
 import 'features/dashboard/data/repositories/dashboard_repository.dart'; 
 import 'features/engineers/data/repositories/engineers_repository.dart'; 
 import 'features/config/data/repositories/config_repository.dart'; 
+import 'features/users/data/repositories/users_repository.dart';
 
 // BLoCs
 import 'features/auth/presentation/bloc/auth_bloc.dart'; 
@@ -64,6 +65,7 @@ class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
   late final DashboardRepository _dashRepo      = DashboardRepository(); //[cite: 6]
   late final EngineersRepository _engineersRepo = EngineersRepository(); //[cite: 6]
   late final ConfigRepository    _configRepo    = ConfigRepository(); //[cite: 6]
+  late final UsersRepository     _usersRepo     = UsersRepository();
 
   // 🌟 Removed inline cascade invocation to prevent race conditions during early navigation tree boots
   late final AuthBloc _authBloc = AuthBloc(authRepository: _authRepo); //[cite: 6]
@@ -104,6 +106,7 @@ class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
         RepositoryProvider<DashboardRepository>.value(value: _dashRepo), //[cite: 6]
         RepositoryProvider<EngineersRepository>.value(value: _engineersRepo), //[cite: 6]
         RepositoryProvider<ConfigRepository>.value(value: _configRepo), //[cite: 6]
+        RepositoryProvider<UsersRepository>.value(value: _usersRepo),
       ],
       child: MultiBlocProvider(
         providers: [
