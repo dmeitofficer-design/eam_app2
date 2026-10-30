@@ -1,6 +1,7 @@
 // lib/features/clients/data/models/hospital_client.dart
 
 import 'package:equatable/equatable.dart';
+import '../../../approvals/data/models/approval_status.dart';
 
 enum DivisionType {
   dhaka('Dhaka'),
@@ -56,6 +57,9 @@ class HospitalClient extends Equatable {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String? updatedByName;
+  final String? createdBy;
+  final ApprovalStatus approvalStatus;
+  final String? rejectionReason;
 
   const HospitalClient({
     required this.id,
@@ -71,6 +75,9 @@ class HospitalClient extends Equatable {
     required this.createdAt,
     this.updatedAt,
     this.updatedByName,
+    this.createdBy,
+    this.approvalStatus = ApprovalStatus.approved,
+    this.rejectionReason,
   });
 
   factory HospitalClient.fromJson(Map<String, dynamic> json) => HospitalClient(
@@ -89,6 +96,9 @@ class HospitalClient extends Equatable {
             ? DateTime.parse(json['updated_at'] as String)
             : null,
         updatedByName: json['updated_by_name'] as String?,
+        createdBy: json['created_by'] as String?,
+        approvalStatus: ApprovalStatus.fromString(json['approval_status'] as String?),
+        rejectionReason: json['rejection_reason'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -131,8 +141,11 @@ class HospitalClient extends Equatable {
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt,
         updatedByName: updatedByName,
+        createdBy: createdBy,
+        approvalStatus: approvalStatus,
+        rejectionReason: rejectionReason,
       );
 
   @override
-  List<Object?> get props => [id, name, district, division, facilityType];
+  List<Object?> get props => [id, name, district, division, facilityType, approvalStatus];
 }

@@ -12,6 +12,8 @@ import '../../features/auth/presentation/screens/change_password_page.dart';
 import '../../features/auth/presentation/screens/device_management_screen.dart'; 
 import '../../features/auth/presentation/screens/profile_screen.dart';
 import '../../features/users/presentation/screens/users_screen.dart';
+import '../../features/approvals/presentation/screens/approvals_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/clients/presentation/screens/clients_screen.dart';
 import '../../features/clients/presentation/screens/client_detail_screen.dart';
@@ -61,7 +63,8 @@ GoRouter buildRouter(AuthBloc authBloc) {
         final location = state.matchedLocation;
         // Every change is attributed to a name, so ask for one first.
         if (!auth.profile.hasName && location != '/profile') return '/profile';
-        if (location.startsWith('/users') && !auth.profile.isAdmin) return '/dashboard';
+        final adminOnly = location.startsWith('/users') || location.startsWith('/approvals');
+        if (adminOnly && !auth.profile.isAdmin) return '/dashboard';
       }
 
       return null;
@@ -158,6 +161,22 @@ GoRouter buildRouter(AuthBloc authBloc) {
             path: '/profile',
             pageBuilder: (context, state) => _noTransition(
               const ProfileScreen(),
+              state.pageKey,
+            ),
+          ),
+
+          GoRoute(
+            path: '/approvals',
+            pageBuilder: (context, state) => _noTransition(
+              const ApprovalsScreen(),
+              state.pageKey,
+            ),
+          ),
+
+          GoRoute(
+            path: '/notifications',
+            pageBuilder: (context, state) => _noTransition(
+              const NotificationsScreen(),
               state.pageKey,
             ),
           ),

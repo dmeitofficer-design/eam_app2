@@ -10,6 +10,10 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../../../core/widgets/error_state_widget.dart';
 import '../../../../shared/widgets/updated_by_label.dart';
+import '../../../approvals/data/models/approval_status.dart';
+import '../../../approvals/data/repositories/approvals_repository.dart';
+import '../../../approvals/presentation/approval_widgets.dart';
+import '../../../approvals/presentation/delete_or_request.dart';
 import '../../../machines/data/models/installed_machine.dart';
 import '../../../machines/presentation/bloc/machines_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -108,47 +112,44 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     );
     if (result == true && mounted) {
       _fetchMachines();
-      AppFeedback.success(context, 'Machine added.');
+      final auth = context.read<AuthBloc>().state;
+      final needsApproval = auth is AuthAuthenticated && auth.profile.needsApproval;
+      AppFeedback.success(
+        context,
+        needsApproval ? 'Machine submitted for admin approval.' : 'Machine added.',
+      );
     }
   }
 
   Future<void> _deleteClient() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface1,
-        title: const Text('Delete client?'),
-        content: Text(
-          'This will permanently delete "${_client?.name}" and all their machines.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(0, 44),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final client = _client;
+    if (client == null) return;
+    final deleted = await deleteOrRequest(
+      context,
+      target: DeletionTarget.client,
+      id: client.id,
+      label: client.name,
+      link: '/clients/${client.id}',
+      ownSubmission: _isOwnUnapproved(client),
+      consequence: 'This permanently deletes "${client.name}". '
+          'Clients that still have machines cannot be deleted.',
+      deleteNow: () => context.read<ClientsRepository>().deleteClient(client.id),
     );
-
-    if (confirmed == true && mounted) {
-      try {
-        await context.read<ClientsRepository>().deleteClient(widget.clientId);
-        context.read<ClientsBloc>().add(const ClientsFetchRequested());
-        if (mounted) context.go('/clients');
-      } catch (e) {
-        if (mounted) AppFeedback.error(context, e.toString());
-      }
+    if (deleted && mounted) {
+      context.read<ClientsBloc>().add(const ClientsFetchRequested(forceRefresh: true));
+      context.go('/clients');
     }
   }
+
+  String? get _myId {
+    final auth = context.read<AuthBloc>().state;
+    return auth is AuthAuthenticated ? auth.profile.id : null;
+  }
+
+  bool _isOwnUnapproved(HospitalClient client) =>
+      client.createdBy != null &&
+      client.createdBy == _myId &&
+      client.approvalStatus != ApprovalStatus.approved;
 
   void _showErrorSnackBar(String errorMessage) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -175,8 +176,18 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= AppConstants.tabletBreakpoint;
     final authState = context.watch<AuthBloc>().state;
-    final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
-    final canDelete = authState is AuthAuthenticated && authState.profile.canDelete;
+    final profile = authState is AuthAuthenticated ? authState.profile : null;
+    final isAdmin = profile?.isAdmin ?? false;
+    final client = _client;
+    final isOwn = client != null && client.createdBy != null && client.createdBy == profile?.id;
+    final ownPending = isOwn && client.approvalStatus == ApprovalStatus.pending;
+    final canEdit = isAdmin || ownPending;
+    // Super admins delete, admins request deletion, submitters withdraw.
+    final canDelete = (profile?.isAdmin ?? false) ||
+        (isOwn && client.approvalStatus != ApprovalStatus.approved);
+    final canAddMachine = (profile?.canSubmit ?? false) &&
+        client != null &&
+        (client.approvalStatus == ApprovalStatus.approved || isOwn);
 
     return Scaffold(
       backgroundColor: AppColors.surface0,
@@ -190,7 +201,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          if (isAdmin && _client != null)
+          if (canEdit && _client != null)
             IconButton(
               icon: const Icon(Icons.edit_rounded),
               tooltip: 'Edit client',
@@ -227,7 +238,27 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         padding: EdgeInsets.all(
                           isDesktop ? AppSpacing.xl : AppSpacing.md,
                         ),
-                        child: isDesktop
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ApprovalBanner(
+                              status: _client!.approvalStatus,
+                              rejectionReason: _client!.rejectionReason,
+                              submittedBy: isOwn ? null : _client!.updatedByName,
+                              canReview: isAdmin,
+                              review: ({required bool approve, String? reason}) =>
+                                  context.read<ApprovalsRepository>().reviewClient(
+                                        _client!.id,
+                                        approve: approve,
+                                        reason: reason,
+                                      ),
+                              onReviewed: () {
+                                _loadClient();
+                                context.read<ClientsBloc>().add(
+                                    const ClientsFetchRequested(forceRefresh: true));
+                              },
+                            ),
+                            isDesktop
                             ? Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -238,7 +269,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   const SizedBox(width: AppSpacing.lg),
                                   Expanded(
                                     child: _MachinesList(
-                                      isAdmin: isAdmin,
+                                      canAdd: canAddMachine,
                                       clientId: widget.clientId,
                                       onAddMachine: _openAddMachine,
                                       onRetry: _fetchMachines,
@@ -252,13 +283,15 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   _ClientProfileCard(client: _client!),
                                   const SizedBox(height: AppSpacing.lg),
                                   _MachinesList(
-                                    isAdmin: isAdmin,
+                                    canAdd: canAddMachine,
                                     clientId: widget.clientId,
                                     onAddMachine: _openAddMachine,
                                     onRetry: _fetchMachines,
                                   ),
                                 ],
                               ),
+                          ],
+                        ),
                       ),
                     ),
     );
@@ -461,12 +494,12 @@ class _Badge extends StatelessWidget {
 
 class _MachinesList extends StatelessWidget {
   const _MachinesList({
-    required this.isAdmin,
+    required this.canAdd,
     required this.clientId,
     required this.onAddMachine,
     required this.onRetry,
   });
-  final bool isAdmin;
+  final bool canAdd;
   final String clientId;
   final VoidCallback onAddMachine;
   final VoidCallback onRetry;
@@ -488,7 +521,7 @@ class _MachinesList extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            if (isAdmin)
+            if (canAdd)
               OutlinedButton.icon(
                 onPressed: onAddMachine,
                 icon: const Icon(Icons.add_rounded, size: 18),
@@ -528,7 +561,7 @@ class _MachinesList extends StatelessWidget {
                         const SizedBox(height: AppSpacing.sm),
                         Text('No machines installed yet.',
                             style: theme.textTheme.bodyMedium,),
-                        if (isAdmin) ...[
+                        if (canAdd) ...[
                           const SizedBox(height: AppSpacing.sm),
                           OutlinedButton(
                             onPressed: onAddMachine,
@@ -608,9 +641,19 @@ class _MachineCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${machine.brand} ${machine.model}',
-                          style: theme.textTheme.titleSmall,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '${machine.brand} ${machine.model}',
+                                style: theme.textTheme.titleSmall,
+                              ),
+                            ),
+                            if (machine.approvalStatus != ApprovalStatus.approved) ...[
+                              const SizedBox(width: AppSpacing.xs),
+                              ApprovalChip(status: machine.approvalStatus),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Text(

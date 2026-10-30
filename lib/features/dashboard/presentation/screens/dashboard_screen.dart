@@ -14,6 +14,7 @@ import '../bloc/dashboard_bloc.dart';
 import '../../data/models/dashboard_analytics.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/presentation/widgets/developer_footer.dart';
+import '../../../notifications/presentation/notifications_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -341,6 +342,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             tooltip: 'Toggle Theme Mode',
                             onPressed: () => _toggleTheme(context),
                           ),
+                          if (!isDesktop) const NotificationsBell(),
                           if (profile != null && !isDesktop) ...[
                             const SizedBox(width: AppSpacing.xs),
                             GestureDetector(

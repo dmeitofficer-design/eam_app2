@@ -54,6 +54,12 @@ class UserProfile extends Equatable {
   bool get isSuperAdmin => role == AppRole.superAdmin;
   bool get canDelete => role == AppRole.superAdmin;
 
+  /// May add clients and machines (data entry's need approval).
+  bool get canSubmit => role >= AppRole.dataEntry;
+
+  /// Submissions from this user wait for an admin's approval.
+  bool get needsApproval => role == AppRole.dataEntry;
+
   /// Technical machine config (PC, network, licenses, invoice) is admin-only.
   bool get canSeeMachineDetails => isAdmin;
 

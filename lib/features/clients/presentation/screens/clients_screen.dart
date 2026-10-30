@@ -10,6 +10,8 @@ import '../../../../core/widgets/error_state_widget.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../config/data/repositories/config_repository.dart';
 import '../../../config/presentation/bloc/config_bloc.dart';
+import '../../../approvals/data/models/approval_status.dart';
+import '../../../approvals/presentation/approval_widgets.dart';
 import '../../data/models/hospital_client.dart';
 import '../bloc/clients_bloc.dart';
 import 'add_client_page.dart';
@@ -83,12 +85,13 @@ class _ClientsScreenState extends State<ClientsScreen> {
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= AppConstants.tabletBreakpoint;
     final authState = context.watch<AuthBloc>().state;
-    final isAdmin =
-        authState is AuthAuthenticated && authState.profile.isAdmin;
+    // Data entry operators can add too; their clients wait for approval.
+    final canAdd =
+        authState is AuthAuthenticated && authState.profile.canSubmit;
 
     return Scaffold(
       backgroundColor: AppColors.surface0,
-      floatingActionButton: isAdmin
+      floatingActionButton: canAdd
           ? FloatingActionButton.extended(
               onPressed: _openAddClient,
               backgroundColor: AppColors.accent,
@@ -131,7 +134,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           ),
                         ],
                       ),
-                      if (isAdmin && isDesktop)
+                      if (canAdd && isDesktop)
                         ElevatedButton.icon(
                           onPressed: _openAddClient,
                           icon: const Icon(Icons.add_rounded, size: 18),
@@ -250,7 +253,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                       },
                                       child: const Text('Clear filters'),
                                     )
-                                  else if (isAdmin)
+                                  else if (canAdd)
                                     ElevatedButton.icon(
                                       onPressed: _openAddClient,
                                       icon: const Icon(Icons.add_rounded, size: 18),
@@ -278,7 +281,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                         isDesktop ? AppSpacing.xl : AppSpacing.md,
                         AppSpacing.md,
                         isDesktop ? AppSpacing.xl : AppSpacing.md,
-                        isAdmin ? 96 : AppSpacing.md,
+                        canAdd ? 96 : AppSpacing.md,
                       ),
                       itemCount: state.clients.length,
                       separatorBuilder: (_, __) =>
@@ -543,11 +546,21 @@ class _ClientCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      client.name,
-                      style: theme.textTheme.titleSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            client.name,
+                            style: theme.textTheme.titleSmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (client.approvalStatus != ApprovalStatus.approved) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          ApprovalChip(status: client.approvalStatus),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Row(

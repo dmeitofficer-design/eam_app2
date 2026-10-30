@@ -3,14 +3,14 @@
 Run migrations in order in **Dashboard → SQL Editor**. Each file is safe to
 run again.
 
-## Roles (Phase 1)
+## Roles
 
 | Role (`app_role`) | In the app   | Can do |
 | ----------------- | ------------ | ------ |
 | `user`            | Viewer       | View clients, machines' basic info and warranty |
-| `data_entry`      | Data Entry   | Viewer access (submitting data comes in Phase 2) |
-| `admin`           | Admin        | Everything except deleting; full machine details; create Viewer / Data Entry users |
-| `super_admin`     | Super Admin  | Everything, including deleting data, creating admins, banning and deleting users |
+| `data_entry`      | Data Entry   | Viewer access + add clients, and machines to existing clients. Submissions stay hidden from others until an admin approves them |
+| `admin`           | Admin        | Everything except deleting; approves submissions; full machine details; create Viewer / Data Entry users. Deleting sends a request to a super admin |
+| `super_admin`     | Super Admin  | Everything, including deleting data, approving deletion requests, creating admins, banning and deleting users |
 
 ## One-time steps for Phase 1
 
@@ -45,3 +45,16 @@ run again.
    ```sql
    update public.profiles set role = 'super_admin' where id = '<your-user-id>';
    ```
+
+## Phase 2: approvals and notifications
+
+Run `008_approvals_notifications.sql` (after 007). It adds:
+
+- `approval_status` on clients and machines. Everything that already exists
+  stays `approved`; data entry submissions start as `pending`.
+- `notifications`: the in-app inbox (bell icon). Rows are written by
+  database triggers only; the app checks for new ones every 30 seconds.
+- `deletion_requests` and `review_deletion_request()`: admins request,
+  super admins approve (which deletes the record) or reject.
+- A storage rule letting data entry operators upload the invoice PDF of
+  their own pending machine.

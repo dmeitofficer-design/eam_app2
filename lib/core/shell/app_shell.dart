@@ -8,6 +8,8 @@ import '../theme/theme_controller.dart';
 import '../constants/app_constants.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/config/presentation/widgets/developer_tile.dart';
+import '../../features/notifications/presentation/notifications_cubit.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 
 // Import your Blocs/Events to access them inside the refresh action
 import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
@@ -33,11 +35,6 @@ class AppShell extends StatelessWidget {
       label: 'Engineers',
       path: '/engineers',
     ),
-    _NavDest(
-      icon: Icons.gpp_good_rounded,
-      label: 'Device Security',
-      path: '/device-management',
-    ),
   ];
 
   static const _usersDestination = _NavDest(
@@ -58,7 +55,19 @@ class AppShell extends StatelessWidget {
     final isDesktop = width >= AppConstants.tabletBreakpoint;
     final authState = context.watch<AuthBloc>().state;
     final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
-    final destinations = [..._destinations, if (isAdmin) _usersDestination];
+    final awaitingReview =
+        context.select<NotificationsCubit, int>((c) => c.state.awaitingReview);
+    final destinations = [
+      ..._destinations,
+      if (isAdmin)
+        _NavDest(
+          icon: Icons.fact_check_rounded,
+          label: 'Approvals',
+          path: '/approvals',
+          badge: awaitingReview,
+        ),
+      if (isAdmin) _usersDestination,
+    ];
     final selectedIdx = _selectedIndex(context, destinations);
 
     if (isDesktop) {
@@ -170,6 +179,9 @@ class _DesktopShellState extends State<_DesktopShell> {
                             ),
                           ],
                         ),
+                      ),
+                      NotificationsBell(
+                        color: isDark ? AppColors.textSecondary : AppColors.lightTextSecondary,
                       ),
                     ],
                   ),
@@ -403,15 +415,22 @@ class _RailItem extends StatelessWidget {
                       : (isDark ? AppColors.textTertiary : AppColors.lightTextTertiary),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  dest.label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: isSelected
-                        ? const Color.fromARGB(255, 56, 199, 255)
-                        : (isDark ? AppColors.textSecondary : AppColors.lightTextSecondary),
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    dest.label,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: isSelected
+                          ? const Color.fromARGB(255, 56, 199, 255)
+                          : (isDark ? AppColors.textSecondary : AppColors.lightTextSecondary),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
+                if (dest.badge > 0)
+                  Badge(
+                    label: Text('${dest.badge}'),
+                    backgroundColor: AppColors.warning,
+                  ),
               ],
             ),
           ),
@@ -444,7 +463,15 @@ class _MobileShell extends StatelessWidget {
         selectedIndex: selectedIndex,
         onDestinationSelected: (idx) => context.go(destinations[idx].path),
         destinations: destinations
-            .map((d) => NavigationDestination(icon: Icon(d.icon), label: d.label))
+            .map((d) => NavigationDestination(
+                  icon: Badge(
+                    isLabelVisible: d.badge > 0,
+                    label: Text('${d.badge}'),
+                    backgroundColor: AppColors.warning,
+                    child: Icon(d.icon),
+                  ),
+                  label: d.label,
+                ))
             .toList(),
       ),
     );
@@ -456,7 +483,9 @@ class _NavDest {
     required this.icon,
     required this.label,
     required this.path,
+    this.badge = 0,
   });
+  final int badge;
   final IconData icon;
   final String label;
   final String path;

@@ -18,6 +18,8 @@ import 'features/dashboard/data/repositories/dashboard_repository.dart';
 import 'features/engineers/data/repositories/engineers_repository.dart'; 
 import 'features/config/data/repositories/config_repository.dart'; 
 import 'features/users/data/repositories/users_repository.dart';
+import 'features/approvals/data/repositories/approvals_repository.dart';
+import 'features/notifications/data/notifications_repository.dart';
 
 // BLoCs
 import 'features/auth/presentation/bloc/auth_bloc.dart'; 
@@ -26,6 +28,7 @@ import 'features/machines/presentation/bloc/machines_bloc.dart';
 import 'features/dashboard/presentation/bloc/dashboard_bloc.dart'; 
 import 'features/engineers/presentation/bloc/engineers_bloc.dart'; 
 import 'features/config/presentation/bloc/config_bloc.dart'; 
+import 'features/notifications/presentation/notifications_cubit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); //[cite: 6]
@@ -66,6 +69,8 @@ class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
   late final EngineersRepository _engineersRepo = EngineersRepository(); //[cite: 6]
   late final ConfigRepository    _configRepo    = ConfigRepository(); //[cite: 6]
   late final UsersRepository     _usersRepo     = UsersRepository();
+  late final ApprovalsRepository _approvalsRepo = ApprovalsRepository();
+  late final NotificationsRepository _notificationsRepo = NotificationsRepository();
 
   // 🌟 Removed inline cascade invocation to prevent race conditions during early navigation tree boots
   late final AuthBloc _authBloc = AuthBloc(authRepository: _authRepo); //[cite: 6]
@@ -107,10 +112,20 @@ class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
         RepositoryProvider<EngineersRepository>.value(value: _engineersRepo), //[cite: 6]
         RepositoryProvider<ConfigRepository>.value(value: _configRepo), //[cite: 6]
         RepositoryProvider<UsersRepository>.value(value: _usersRepo),
+        RepositoryProvider<ApprovalsRepository>.value(value: _approvalsRepo),
+        RepositoryProvider<NotificationsRepository>.value(value: _notificationsRepo),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider<AuthBloc>.value(value: _authBloc), //[cite: 6]
+          BlocProvider<NotificationsCubit>(
+            lazy: false,
+            create: (_) => NotificationsCubit(
+              repository: _notificationsRepo,
+              approvals: _approvalsRepo,
+              authBloc: _authBloc,
+            ),
+          ),
           BlocProvider<DashboardBloc>(
             create: (_) => DashboardBloc(repository: _dashRepo), //[cite: 6]
           ),
