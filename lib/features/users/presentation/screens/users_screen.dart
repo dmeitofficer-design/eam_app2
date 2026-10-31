@@ -221,13 +221,13 @@ class _UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurface.withOpacity(0.55);
+    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.55);
 
     return Card(
       margin: EdgeInsets.zero,
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppColors.accent.withOpacity(0.15),
+          backgroundColor: AppColors.accent.withValues(alpha: 0.15),
           child: Text(
             user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
             style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
@@ -296,7 +296,7 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Text(
@@ -435,7 +435,7 @@ class _UserFormSheetState extends State<_UserFormSheet> {
               ],
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<AppRole>(
-                value: _role,
+                initialValue: _role,
                 decoration: const InputDecoration(labelText: 'Role'),
                 items: roles
                     .map((r) => DropdownMenuItem(

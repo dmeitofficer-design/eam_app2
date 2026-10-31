@@ -289,7 +289,7 @@ class _SectionTitle extends StatelessWidget {
             text.toUpperCase(),
             style: theme.textTheme.labelSmall?.copyWith(
               letterSpacing: 1.2,
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
           ),
           if (count > 0) ...[
@@ -350,7 +350,7 @@ class _ReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurface.withOpacity(0.55);
+    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.55);
     final approveColor = approveIsDestructive ? AppColors.error : AppColors.success;
 
     return Card(

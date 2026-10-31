@@ -22,7 +22,7 @@ class UpdatedByLabel extends StatelessWidget {
       'Updated by $who$when',
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
             fontSize: 10,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
           ),
     );
   }

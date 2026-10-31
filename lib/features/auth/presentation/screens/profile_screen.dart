@@ -71,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authState = context.watch<AuthBloc>().state;
     if (authState is! AuthAuthenticated) return const SizedBox.shrink();
     final profile = authState.profile;
-    final muted = theme.colorScheme.onSurface.withOpacity(0.55);
+    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.55);
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Profile')),
@@ -83,9 +83,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               margin: const EdgeInsets.only(bottom: AppSpacing.md),
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.12),
+                color: AppColors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: AppColors.warning.withOpacity(0.5)),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
               ),
               child: const Text(
                 'Please add your name to continue. It is shown next to the '

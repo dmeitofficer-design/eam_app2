@@ -20,9 +20,9 @@ class ApprovalChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: status.color.withOpacity(0.12),
+        color: status.color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: status.color.withOpacity(0.4)),
+        border: Border.all(color: status.color.withValues(alpha: 0.4)),
       ),
       child: Text(
         status == ApprovalStatus.pending ? 'Pending' : status.label,
@@ -111,9 +111,9 @@ class _ApprovalBannerState extends State<ApprovalBanner> {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: status.color.withOpacity(0.10),
+        color: status.color.withValues(alpha: 0.10),
         borderRadius: AppRadius.card,
-        border: Border.all(color: status.color.withOpacity(0.45)),
+        border: Border.all(color: status.color.withValues(alpha: 0.45)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

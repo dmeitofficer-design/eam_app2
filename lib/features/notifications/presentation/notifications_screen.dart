@@ -105,7 +105,7 @@ class _NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final n = notification;
-    final muted = theme.colorScheme.onSurface.withOpacity(0.5);
+    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.5);
 
     return ListTile(
       onTap: onTap,
