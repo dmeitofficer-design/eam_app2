@@ -1,6 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- In-app updates: lets the app hand a downloaded APK to the installer. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Not needed (APK is stored in app-private storage); added by ota_update. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
 
     <!-- MERGED AND OPTIMIZED QUERIES BLOCK -->
     <queries>
@@ -64,5 +69,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- In-app updates (ota_update): shares the downloaded APK with the installer. -->
+        <provider
+            android:name="sk.fourq.otaupdate.OtaUpdateFileProvider"
+            android:authorities="${applicationId}.ota_update_provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/ota_update_filepaths" />
+        </provider>
     </application>
 </manifest>

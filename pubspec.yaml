@@ -46,6 +46,7 @@ dependencies:
   # Local Secure Storage
   flutter_secure_storage: ^10.3.1
   package_info_plus: ^10.2.0
+  ota_update: ^7.1.0
 
 dev_dependencies:
   flutter_test:

@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart'; 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/update_dialog.dart';
 import '../../../../core/services/update_service.dart';
 import '../bloc/auth_bloc.dart';
 
@@ -92,41 +93,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           });
         }
 
-        await showDialog(
-          context: context,
-          barrierDismissible: !updateInfo.isMandatory,
-          builder: (dialogContext) => PopScope(
-            canPop: !updateInfo.isMandatory,
-            child: AlertDialog(
-              title: Text('Update Available (${updateInfo.latestVersion})'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(updateInfo.releaseNotes ?? 'A new version of DME CM is available.'),
-                  if (updateInfo.isMandatory) ...[
-                    const SizedBox(height: 12),
-                    const Text(
-                      'This update is required to continue using the app.',
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                if (!updateInfo.isMandatory)
-                  TextButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Later'),
-                  ),
-                ElevatedButton(
-                  onPressed: () => UpdateService.launchUpdateUrl(updateInfo.downloadUrl),
-                  child: const Text('Update Now'),
-                ),
-              ],
-            ),
-          ),
-        );
+        await UpdateDialog.show(context, updateInfo);
 
         return updateInfo.isMandatory;
       }
