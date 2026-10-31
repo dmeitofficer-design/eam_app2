@@ -1,18 +1,89 @@
 name: Build and Publish Release
 
+# Push a tag like v1.0.2+9 (version 1.0.2, build number 9) to release.
+# The build number must be higher than the last release's, or installed
+# apps won't offer the update. Put "[mandatory]" in an annotated tag's
+# message to force everyone to update. See RELEASING.md.
 on:
   push:
     tags:
-      - 'v*' # Triggers whenever you push a tag like v1.0.1+19
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build-and-release:
-    name: Build binaries and create release
+    name: Build, publish and announce the release
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Read version and notes from the tag
+        id: version
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          VERSION="${TAG#v}"
+          NAME="${VERSION%%+*}"
+          BUILD="${VERSION##*+}"
+          if [[ "$NAME" == "$VERSION" || ! "$NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$BUILD" =~ ^[0-9]+$ ]]; then
+            echo "::error::Tag must look like v1.2.3+45 (got $TAG)"
+            exit 1
+          fi
+
+          # Annotated tag message (or the commit message for a plain tag).
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          NOTES="$(git for-each-ref "refs/tags/$TAG" --format='%(contents)' | sed '/-----BEGIN PGP SIGNATURE-----/,$d')"
+          MANDATORY=false
+          if [[ "$NOTES" == *"[mandatory]"* ]]; then MANDATORY=true; fi
+          NOTES="$(printf '%s' "${NOTES//\[mandatory\]/}" | sed -e 's/[[:space:]]*$//')"
+          if [[ -z "$NOTES" ]]; then NOTES="Bug fixes and improvements."; fi
+
+          {
+            echo "tag=$TAG"
+            echo "name=$NAME"
+            echo "build=$BUILD"
+            echo "mandatory=$MANDATORY"
+            echo "notes<<RELEASE_NOTES_EOF"
+            echo "$NOTES"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create .env from secrets
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [[ -z "$ENV_FILE" ]]; then
+            echo "::error::Add the ENV_FILE repository secret (contents of your .env file)."
+            exit 1
+          fi
+          printf '%s\n' "$ENV_FILE" > .env
+
+      - name: Set up Android release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          # Updates only install over the existing app when signed with the
+          # same key, so never fall back to a debug-signed release.
+          if [[ -z "$KEYSTORE_BASE64" || -z "$KEYSTORE_PASSWORD" || -z "$KEY_ALIAS" || -z "$KEY_PASSWORD" ]]; then
+            echo "::error::Add the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD secrets."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -29,20 +100,67 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # Build Android APK
       - name: Build Android APK
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release \
+            --build-name=${{ steps.version.outputs.name }} \
+            --build-number=${{ steps.version.outputs.build }}
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/DME-CM.apk
 
-      # Build Windows Executable / MSIX
-      - name: Build Windows App
-        run: flutter build windows --release
+      - name: Build Windows app
+        run: |
+          flutter build windows --release \
+            --build-name=${{ steps.version.outputs.name }} \
+            --build-number=${{ steps.version.outputs.build }}
 
-      # Create GitHub Release with fixed asset filenames
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Package Windows app as a zip
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/DME-CM-windows.zip
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
+          name: DME CM ${{ steps.version.outputs.name }} (build ${{ steps.version.outputs.build }})
+          body: ${{ steps.version.outputs.notes }}
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/windows/x64/runner/Release/*
+            dist/DME-CM.apk
+            dist/DME-CM-windows.zip
+
+      # Installed apps read app_versions on start-up and offer the update.
+      - name: Announce the version to installed apps
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TAG: ${{ steps.version.outputs.tag }}
+          NAME: ${{ steps.version.outputs.name }}
+          BUILD: ${{ steps.version.outputs.build }}
+          MANDATORY: ${{ steps.version.outputs.mandatory }}
+          NOTES: ${{ steps.version.outputs.notes }}
+        run: |
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_SERVICE_KEY" ]]; then
+            echo "::error::Add the SUPABASE_URL and SUPABASE_SERVICE_KEY secrets."
+            exit 1
+          fi
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/${TAG//+/%2B}"
+          BODY="$(jq -n \
+            --arg name "$NAME" --argjson build "$BUILD" --argjson mandatory "$MANDATORY" \
+            --arg notes "$NOTES" --arg apk "$BASE/DME-CM.apk" --arg zip "$BASE/DME-CM-windows.zip" \
+            '[
+              {platform: "android", latest_version: $name, build_number: $build, is_mandatory: $mandatory, download_url: $apk, release_notes: $notes},
+              {platform: "windows", latest_version: $name, build_number: $build, is_mandatory: $mandatory, download_url: $zip, release_notes: $notes}
+            ]')"
+
+          # New-style secret keys (sb_secret_...) go only in the apikey
+          # header; legacy service_role keys are JWTs and go in both.
+          AUTH=(-H "apikey: $SUPABASE_SERVICE_KEY")
+          if [[ "$SUPABASE_SERVICE_KEY" != sb_* ]]; then
+            AUTH+=(-H "Authorization: Bearer $SUPABASE_SERVICE_KEY")
+          fi
+
+          curl --fail-with-body -sS -X POST "${SUPABASE_URL%/}/rest/v1/app_versions" \
+            "${AUTH[@]}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "$BODY"
+          echo "Announced $NAME (build $BUILD) to Android and Windows apps."

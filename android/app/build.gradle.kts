@@ -19,6 +19,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Required by ota_update (in-app updates).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -46,7 +48,14 @@ android {
     buildTypes {
         release {
             // ── APPLY RELEASE SIGNING ───────────────────────────
-            signingConfig = signingConfigs.getByName("release")
+            // Without key.properties (e.g. a fresh clone) fall back to the
+            // debug key so the build still works. Such APKs cannot update
+            // installs signed with the release key.
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             
             isMinifyEnabled = true
             isShrinkResources = true
@@ -62,4 +71,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
