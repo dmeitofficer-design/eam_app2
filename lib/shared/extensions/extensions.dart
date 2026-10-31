@@ -1,6 +1,6 @@
 // lib/shared/extensions/extensions.dart
 
-library extensions;
+library;
 
 export 'date_extensions.dart';
 export 'string_extensions.dart';

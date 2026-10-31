@@ -42,7 +42,7 @@ class DeveloperFooter extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
+                DecoratedBox(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
@@ -68,7 +68,7 @@ class DeveloperFooter extends StatelessWidget {
                       'Developer',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurface
-                        .withOpacity(0.6),
+                        .withValues(alpha: 0.6),
                     fontWeight: FontWeight.w600,
                   ),
                 ),

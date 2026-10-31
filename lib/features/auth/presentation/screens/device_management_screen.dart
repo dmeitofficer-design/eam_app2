@@ -53,7 +53,7 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
     
     return {
       'name': platform.isNotEmpty ? userAgentOrPlatform! : 'Hardware Terminal', 
-      'icon': Icons.devices_other
+      'icon': Icons.devices_other,
     };
   }
 

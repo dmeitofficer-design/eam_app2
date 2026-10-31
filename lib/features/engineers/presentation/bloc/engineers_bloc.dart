@@ -218,11 +218,9 @@ class EngineersBloc extends Bloc<EngineersEvent, EngineersState> {
   ) async {
     try {
       final updated = await _repo.updateEngineer(event.engineer);
-      if (updated != null) {
-        _currentList = _currentList
-            .map((e) => e.id == updated.id ? updated : e)
-            .toList();
-      }
+      _currentList = _currentList
+          .map((e) => e.id == updated.id ? updated : e)
+          .toList();
       emit(EngineersActionSuccess('Engineer updated.', _currentList));
     } catch (e) {
       emit(EngineersActionFailure(_mapErrorToUserMessage(e), _currentList));
@@ -238,11 +236,9 @@ class EngineersBloc extends Bloc<EngineersEvent, EngineersState> {
         event.engineerId,
         event.isAvailable, 
       );
-      if (updated != null) {
-        _currentList = _currentList
-            .map((e) => e.id == updated.id ? updated : e)
-            .toList();
-      }
+      _currentList = _currentList
+          .map((e) => e.id == updated.id ? updated : e)
+          .toList();
       emit(EngineersActionSuccess('Status updated.', _currentList));
     } catch (e) {
       emit(EngineersActionFailure(_mapErrorToUserMessage(e), _currentList));

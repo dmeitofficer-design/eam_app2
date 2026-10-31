@@ -79,7 +79,7 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
             },
           ),
           if (!_isReady)
-            Container(
+            ColoredBox(
               color: AppColors.surface0,
               child: Center(
                 child: Column(

@@ -30,7 +30,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); //[cite: 6]
 
   // 1. Load the environment file assets safely from disk
-  await dotenv.load(fileName: ".env"); //[cite: 6]
+  await dotenv.load(fileName: '.env'); //[cite: 6]
 
   // 2. Initialize Supabase using the loaded environment parameters once
   await Supabase.initialize(

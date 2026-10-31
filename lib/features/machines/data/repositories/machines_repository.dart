@@ -40,8 +40,8 @@ class MachinesRepository {
     if (engineerIds.isNotEmpty) {
       final payload = engineerIds.map((eId) => {
         'machine_id': machineId,
-        'engineer_id': eId
-      }).toList();
+        'engineer_id': eId,
+      },).toList();
       await _client.from('machine_engineers').insert(payload);
     }
   }
@@ -64,7 +64,7 @@ class MachinesRepository {
                 'machine_id': created.id,
                 'part_name': p.partName,
                 'serial_number': p.serialNumber,
-              }).toList();
+              },).toList();
       await _client.from('machine_parts').insert(partsPayload);
     }
 
@@ -89,7 +89,7 @@ class MachinesRepository {
                 'machine_id': machine.id,
                 'part_name': p.partName,
                 'serial_number': p.serialNumber,
-              }).toList();
+              },).toList();
       await _client.from('machine_parts').insert(partsPayload);
     }
 

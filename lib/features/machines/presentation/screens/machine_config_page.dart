@@ -147,7 +147,7 @@ class _ConfigSectionState extends State<_ConfigSection> {
         const SizedBox(height: AppSpacing.md),
 
         // Existing values
-        Container(
+        DecoratedBox(
           decoration: BoxDecoration(
             color: AppColors.surface1,
             borderRadius: AppRadius.card,
@@ -228,7 +228,7 @@ class _ConfigSectionState extends State<_ConfigSection> {
                               final items = await repo.getByType(widget.configType);
                               final match = items.where(
                                   (e) => e.value.toLowerCase() ==
-                                      value.toLowerCase());
+                                      value.toLowerCase(),);
                               if (match.isNotEmpty && context.mounted) {
                                 context.read<ConfigBloc>().add(
                                   ConfigOptionDeleted(match.first.id),

@@ -92,7 +92,7 @@ class ConfigBloc extends Bloc<ConfigEvent, ConfigState> {
         brands: opts.brands,
         machineTypes: opts.machineTypes,
         isLoading: false,
-      ));
+      ),);
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
     }
@@ -114,7 +114,7 @@ class ConfigBloc extends Bloc<ConfigEvent, ConfigState> {
         brands: opts.brands,
         machineTypes: opts.machineTypes,
         successMessage: '"${event.value}" added.',
-      ));
+      ),);
     } catch (e) {
       emit(state.copyWith(error: e.toString()));
     }
@@ -132,7 +132,7 @@ class ConfigBloc extends Bloc<ConfigEvent, ConfigState> {
         brands: opts.brands,
         machineTypes: opts.machineTypes,
         successMessage: 'Option removed.',
-      ));
+      ),);
     } catch (e) {
       emit(state.copyWith(error: e.toString()));
     }

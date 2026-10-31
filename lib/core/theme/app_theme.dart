@@ -180,7 +180,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.card,
-          side: BorderSide(color: AppColors.darkSurface2, width: 1),
+          side: const BorderSide(color: AppColors.darkSurface2, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -193,11 +193,11 @@ class AppTheme {
         ),
         border: OutlineInputBorder(
           borderRadius: AppRadius.inputField,
-          borderSide: BorderSide(color: AppColors.darkSurface3),
+          borderSide: const BorderSide(color: AppColors.darkSurface3),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppRadius.inputField,
-          borderSide: BorderSide(color: AppColors.darkSurface3),
+          borderSide: const BorderSide(color: AppColors.darkSurface3),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadius.inputField,
@@ -226,7 +226,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.darkTextPrimary,
-          side: BorderSide(color: AppColors.darkSurface3),
+          side: const BorderSide(color: AppColors.darkSurface3),
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: AppRadius.button),
           textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
@@ -242,7 +242,7 @@ class AppTheme {
         backgroundColor: AppColors.darkSurface2,
         selectedColor: AppColors.darkAccentSurface,
         labelStyle: textTheme.bodySmall?.copyWith(color: AppColors.darkTextSecondary),
-        side: BorderSide(color: AppColors.darkSurface3),
+        side: const BorderSide(color: AppColors.darkSurface3),
         shape: RoundedRectangleBorder(borderRadius: AppRadius.chip),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
       ),
@@ -305,7 +305,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.dialog),
         elevation: 0,
       ),
-      bottomSheetTheme: BottomSheetThemeData(
+      bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.darkSurface1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
@@ -502,7 +502,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.dialog),
         elevation: 0,
       ),
-      bottomSheetTheme: BottomSheetThemeData(
+      bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.lightSurface1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),

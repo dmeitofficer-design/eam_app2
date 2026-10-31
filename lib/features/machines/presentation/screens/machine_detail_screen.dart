@@ -122,7 +122,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           if (state is MachinesLoading) {
             return Scaffold(
               backgroundColor: AppColors.surface0,
-              body: Center(child: CircularProgressIndicator()),
+              body: const Center(child: CircularProgressIndicator()),
             );
           }
           if (state is MachinesError) {
@@ -134,7 +134,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
               ),
               body: Center(
                 child: Text(state.message,
-                    style: const TextStyle(color: AppColors.error)),
+                    style: const TextStyle(color: AppColors.error),),
               ),
             );
           }
@@ -144,7 +144,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
               appBar: AppBar(
                 leading: BackButton(onPressed: () => Navigator.of(context).pop()),
                 title: Text('${state.machine.brand} ${state.machine.model}',
-                    overflow: TextOverflow.ellipsis),
+                    overflow: TextOverflow.ellipsis,),
                 actions: [
                   if (isAdmin) ...[
                     IconButton(
@@ -181,7 +181,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           }
           return Scaffold(
             backgroundColor: AppColors.surface0,
-            body: Center(child: CircularProgressIndicator()),
+            body: const Center(child: CircularProgressIndicator()),
           );
         },
       ),
@@ -297,7 +297,7 @@ class _MachineIdentityCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               child: const Icon(Icons.precision_manufacturing_rounded,
-                  color: AppColors.accent, size: 26),
+                  color: AppColors.accent, size: 26,),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -305,9 +305,9 @@ class _MachineIdentityCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('${machine.brand} ${machine.model}',
-                      style: theme.textTheme.titleLarge),
+                      style: theme.textTheme.titleLarge,),
                   Text(machine.machineType.label,
-                      style: theme.textTheme.bodyMedium),
+                      style: theme.textTheme.bodyMedium,),
                 ],
               ),
             ),
@@ -323,13 +323,13 @@ class _MachineIdentityCard extends StatelessWidget {
           _DetailRow(label: 'Serial No.', value: machine.serialNumber!),
         if (machine.installationEngineerName != null)
           _DetailRow(
-              label: 'Installed By', value: machine.installationEngineerName!),
+              label: 'Installed By', value: machine.installationEngineerName!,),
         _DetailRow(
-            label: 'Install Date', value: fmt.format(machine.installationDate)),
+            label: 'Install Date', value: fmt.format(machine.installationDate),),
         _DetailRow(
-            label: 'Warranty Period', value: '${machine.warrantyPeriod} months'),
+            label: 'Warranty Period', value: '${machine.warrantyPeriod} months',),
         _DetailRow(
-            label: 'Expiry Date', value: fmt.format(machine.warrantyExpiryDate)),
+            label: 'Expiry Date', value: fmt.format(machine.warrantyExpiryDate),),
         if (machine.notes != null && machine.notes!.isNotEmpty)
           _DetailRow(label: 'Notes', value: machine.notes!),
 
@@ -556,7 +556,7 @@ class _WarrantyLifecycle extends StatelessWidget {
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.5,
                     color: AppColors.textTertiary,
-                  )),
+                  ),),
               _StatusPill(label: statusLabel, color: color),
             ],
           ),
@@ -575,7 +575,7 @@ class _WarrantyLifecycle extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Text('months remaining',
-                    style: theme.textTheme.bodyMedium),
+                    style: theme.textTheme.bodyMedium,),
               ),
             ],
           ),
@@ -594,9 +594,9 @@ class _WarrantyLifecycle extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(fmt.format(machine.installationDate),
-                  style: theme.textTheme.labelSmall),
+                  style: theme.textTheme.labelSmall,),
               Text(fmt.format(machine.warrantyExpiryDate),
-                  style: theme.textTheme.labelSmall),
+                  style: theme.textTheme.labelSmall,),
             ],
           ),
           Row(
@@ -642,7 +642,7 @@ class _PartsCard extends StatelessWidget {
                     ),
                     child: Center(
                       child: Text('${i + 1}',
-                          style: theme.textTheme.labelSmall),
+                          style: theme.textTheme.labelSmall,),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -655,13 +655,13 @@ class _PartsCard extends StatelessWidget {
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontFamily: 'monospace',
                               color: AppColors.textSecondary,
-                            )),
+                            ),),
                       ],
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
+                        horizontal: AppSpacing.sm, vertical: AppSpacing.xxs,),
                     decoration: BoxDecoration(
                       color: AppColors.surface2,
                       borderRadius: AppRadius.chip,
@@ -670,7 +670,7 @@ class _PartsCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.build_rounded,
-                            size: 10, color: AppColors.textTertiary),
+                            size: 10, color: AppColors.textTertiary,),
                         const SizedBox(width: 4),
                         Text('Part', style: theme.textTheme.labelSmall),
                       ],
@@ -711,7 +711,7 @@ class _EngineersCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Text('No engineers assigned.',
-                style: theme.textTheme.bodySmall),
+                style: theme.textTheme.bodySmall,),
           )
         else
           ...machine.engineers.asMap().entries.map((entry) {
@@ -829,11 +829,11 @@ class _InvoiceCard extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.xs),
               ),
               child: const Icon(Icons.picture_as_pdf_rounded,
-                  color: AppColors.error, size: 22),
+                  color: AppColors.error, size: 22,),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -842,9 +842,9 @@ class _InvoiceCard extends StatelessWidget {
                 children: [
                   Text(fileName,
                       style: theme.textTheme.titleSmall,
-                      overflow: TextOverflow.ellipsis),
+                      overflow: TextOverflow.ellipsis,),
                   Text('PDF Document',
-                      style: theme.textTheme.bodySmall),
+                      style: theme.textTheme.bodySmall,),
                 ],
               ),
             ),
@@ -884,11 +884,11 @@ class _InvoiceCard extends StatelessWidget {
                     final uri = Uri.parse(signedUrl!);
                     if (await canLaunchUrl(uri)) {
                       await launchUrl(uri,
-                          mode: LaunchMode.externalApplication);
+                          mode: LaunchMode.externalApplication,);
                     } else {
                       if (context.mounted) {
                         AppFeedback.error(
-                            context, 'Cannot open URL.');
+                            context, 'Cannot open URL.',);
                       }
                     }
                   },
@@ -905,10 +905,10 @@ class _InvoiceCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.timer_rounded,
-                  size: 12, color: AppColors.textTertiary),
+                  size: 12, color: AppColors.textTertiary,),
               const SizedBox(width: 4),
               Text('Link valid for 1 hour.',
-                  style: theme.textTheme.bodySmall),
+                  style: theme.textTheme.bodySmall,),
             ],
           ),
         ],
@@ -925,8 +925,7 @@ class _SectionCard extends StatelessWidget {
   const _SectionCard({
     required this.children,
     this.header,
-    this.trailing,
-  });
+  }) : trailing = null;
 
   final List<Widget> children;
   final String? header;
@@ -1006,11 +1005,11 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
+            horizontal: AppSpacing.sm, vertical: AppSpacing.xxs,),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: AppRadius.chip,
-          border: Border.all(color: color.withOpacity(0.4)),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
         ),
         child: Text(
           label,

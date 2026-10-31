@@ -103,7 +103,7 @@ class _MachineFormSheetState extends State<MachineFormSheet> {
         _customFields.add(MapEntry(
           TextEditingController(text: key),
           TextEditingController(text: value),
-        ));
+        ),);
       });
     }
 
@@ -274,14 +274,14 @@ class _MachineFormSheetState extends State<MachineFormSheet> {
               // Machine Type
               const _Label('Machine Type'),
               DropdownButtonFormField<MachineType>(
-                value: _machineType,
+                initialValue: _machineType,
                 dropdownColor: AppColors.surface1,
                 decoration: const InputDecoration(),
                 items: MachineType.values
                     .map((t) => DropdownMenuItem(
                           value: t,
                           child: Text(t.label),
-                        ))
+                        ),)
                     .toList(),
                 onChanged: (v) => setState(() => _machineType = v!),
               ),

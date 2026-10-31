@@ -106,7 +106,7 @@ class _EngineerDropdownSelectorState extends State<EngineerDropdownSelector> {
         labelText: 'Assign Installation Engineer',
         hintText: 'Select an engineer',
       ),
-      value: _selectedId,
+      initialValue: _selectedId,
       items: _availableEngineers.map((eng) {
         return DropdownMenuItem(
           value: eng.id, 

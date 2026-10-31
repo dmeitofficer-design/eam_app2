@@ -226,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
             hintText: 'username',
             suffixIcon: _buildDomainDropdown(_signInDomain, (newValue) {
               if (newValue != null) setState(() => _signInDomain = newValue);
-            }, theme),
+            }, theme,),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -272,11 +272,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text("Need system access? ", style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)),
+            Text('Need system access? ', style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)),
             GestureDetector(
               onTap: isLoading ? null : () => setState(() => _isRegistering = true),
               child: Text(
-                "Create Account",
+                'Create Account',
                 style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
               ),
             ),
@@ -315,7 +315,7 @@ class _LoginScreenState extends State<LoginScreen> {
             hintText: 'new.user',
             suffixIcon: _buildDomainDropdown(_regUserDomain, (newValue) {
               if (newValue != null) setState(() => _regUserDomain = newValue);
-            }, theme),
+            }, theme,),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -377,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
             hintText: 'super.admin',
             suffixIcon: _buildDomainDropdown(_superAdminDomain, (newValue) {
               if (newValue != null) setState(() => _superAdminDomain = newValue);
-            }, theme),
+            }, theme,),
           ),
         ),
         const SizedBox(height: AppSpacing.md),

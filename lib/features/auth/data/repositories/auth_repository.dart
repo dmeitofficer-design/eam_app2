@@ -122,7 +122,7 @@ class AuthRepository {
     try {
       await _client.auth.signOut(scope: SignOutScope.others);
     } catch (e) {
-      throw AuthException("Failed to terminate other sessions: ${e.toString()}");
+      throw AuthException('Failed to terminate other sessions: ${e.toString()}');
     }
   }
 
@@ -136,7 +136,7 @@ class AuthRepository {
           .select('session_id, login_time, last_active');
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
-      throw AuthException("Failed to retrieve active devices: ${e.toString()}");
+      throw AuthException('Failed to retrieve active devices: ${e.toString()}');
     }
   }
 
@@ -147,9 +147,9 @@ class AuthRepository {
     try {
       await _client.rpc('terminate_session', params: {
         'target_session_id': sessionId,
-      });
+      },);
     } catch (e) {
-      throw AuthException("Failed to evict targeted device session: ${e.toString()}");
+      throw AuthException('Failed to evict targeted device session: ${e.toString()}');
     }
   }
 }

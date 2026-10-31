@@ -141,7 +141,7 @@ class _AddMachinePageState extends State<AddMachinePage> {
         _customFields.add(MapEntry(
           TextEditingController(text: key),
           TextEditingController(text: value),
-        ));
+        ),);
       });
     }
 
@@ -177,8 +177,12 @@ if (_ipCtrls.isEmpty) {
     _fpdLicenseCtrl.dispose();
     _fpdDongleSerialCtrl.dispose();
 
-    for (final p in _parts) p.dispose();
-    for (final ctrl in _ipCtrls) ctrl.dispose();
+    for (final p in _parts) {
+      p.dispose();
+    }
+    for (final ctrl in _ipCtrls) {
+      ctrl.dispose();
+    }
     for (final pair in _customFields) {
       pair.key.dispose();
       pair.value.dispose();
@@ -239,7 +243,7 @@ if (_ipCtrls.isEmpty) {
           .map((p) => MachinePart.draft(
                 partName: p.nameCtrl.text.trim(),
                 serialNumber: p.serialCtrl.text.trim(),
-              ))
+              ),)
           .toList();
 
       final Map<String, String> metaMap = {};
@@ -348,7 +352,7 @@ if (_ipCtrls.isEmpty) {
     Widget buildMachineTypeField(ConfigState cfg) => _Field(
           label: 'Machine Type',
           child: DropdownButtonFormField<String>(
-            value: _machineType.isEmpty ? null : _machineType,
+            initialValue: _machineType.isEmpty ? null : _machineType,
             isExpanded: true,
             dropdownColor: AppColors.surface2,
             hint: const Text('Select type', overflow: TextOverflow.ellipsis),
@@ -361,7 +365,7 @@ if (_ipCtrls.isEmpty) {
     Widget buildBrandField(ConfigState cfg) => _Field(
           label: 'Brand',
           child: DropdownButtonFormField<String>(
-            value: _brand.isEmpty ? null : _brand,
+            initialValue: _brand.isEmpty ? null : _brand,
             isExpanded: true,
             dropdownColor: AppColors.surface2,
             hint: const Text('Select brand', overflow: TextOverflow.ellipsis),
@@ -418,7 +422,7 @@ if (_ipCtrls.isEmpty) {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SectionTitle('Machine Details'),
+                  const _SectionTitle('Machine Details'),
                   const SizedBox(height: AppSpacing.md),
 
                   BlocBuilder<ConfigBloc, ConfigState>(
@@ -479,7 +483,7 @@ if (_ipCtrls.isEmpty) {
                                   if (engineersList.isEmpty) {
                                     return Text(
                                       'No engineers found', 
-                                      style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)
+                                      style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary),
                                     );
                                   }
 
@@ -520,9 +524,9 @@ if (_ipCtrls.isEmpty) {
                                           ],
                                         ),
                                         selected: isSelected,
-                                        selectedColor: AppColors.accent.withOpacity(0.15),
+                                        selectedColor: AppColors.accent.withValues(alpha: 0.15),
                                         checkmarkColor: AppColors.accent,
-                                        disabledColor: Colors.orange.withOpacity(0.08),
+                                        disabledColor: Colors.orange.withValues(alpha: 0.08),
                                         side: BorderSide(
                                           color: isAvailable 
                                               ? (isSelected ? AppColors.accent : AppColors.surface3) 
@@ -597,7 +601,7 @@ if (_ipCtrls.isEmpty) {
                   _buildConditionalTechnicalFields(isMobile),
 
                   // PC Configuration Header and Toggle
-                  _SectionTitle('PC Configuration (Optional)'),
+                  const _SectionTitle('PC Configuration (Optional)'),
                   const SizedBox(height: AppSpacing.xs),
                   
                   // NEW: Toggle visibility configuration setting switch
@@ -636,7 +640,7 @@ if (_ipCtrls.isEmpty) {
                                   _Field(
                                     label: 'Number of LAN ports',
                                     child: DropdownButtonFormField<String>(
-                                      value: _pcLanPorts,
+                                      initialValue: _pcLanPorts,
                                       isExpanded: true,
                                       dropdownColor: AppColors.surface2,
                                       items: ['1', '2', '3', '4'].map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
@@ -669,7 +673,7 @@ if (_ipCtrls.isEmpty) {
                                         child: _Field(
                                           label: 'Number of LAN ports',
                                           child: DropdownButtonFormField<String>(
-                                            value: _pcLanPorts,
+                                            initialValue: _pcLanPorts,
                                             isExpanded: true,
                                             dropdownColor: AppColors.surface2,
                                             items: ['1', '2', '3', '4'].map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
@@ -765,7 +769,7 @@ if (_ipCtrls.isEmpty) {
       ),
     );
   },
-)
+),
                     ],
                   ),
 
@@ -773,7 +777,7 @@ if (_ipCtrls.isEmpty) {
                   _buildScalableFieldsSection(theme),
 
                   const SizedBox(height: AppSpacing.lg),
-                  _SectionTitle('Machine Parts'),
+                  const _SectionTitle('Machine Parts'),
                   const SizedBox(height: AppSpacing.xs),
                   Text('Individual components with serial numbers.', style: theme.textTheme.bodySmall),
                   const SizedBox(height: AppSpacing.md),
@@ -825,7 +829,7 @@ if (_ipCtrls.isEmpty) {
                   ),
 
                   const SizedBox(height: AppSpacing.lg),
-                  _SectionTitle('PDF Receipt / Invoice'),
+                  const _SectionTitle('PDF Receipt / Invoice'),
                   const SizedBox(height: AppSpacing.md),
 
                   GestureDetector(
@@ -906,7 +910,7 @@ if (_ipCtrls.isEmpty) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionTitle('Printer Specifications'),
+            const _SectionTitle('Printer Specifications'),
             const SizedBox(height: AppSpacing.md),
             _FormCard(
               children: [
@@ -951,7 +955,7 @@ if (_ipCtrls.isEmpty) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionTitle('X-Ray Structural Components'),
+            const _SectionTitle('X-Ray Structural Components'),
             const SizedBox(height: AppSpacing.md),
             _FormCard(
               children: [
@@ -973,7 +977,7 @@ if (_ipCtrls.isEmpty) {
         Widget buildLicenseType() => _Field(
               label: 'License Type',
               child: DropdownButtonFormField<String>(
-                value: _fpdLicenseType,
+                initialValue: _fpdLicenseType,
                 isExpanded: true,
                 dropdownColor: AppColors.surface2,
                 items: ['Hardware/Dongle Key', 'Software Key', 'Demo']
@@ -994,7 +998,7 @@ if (_ipCtrls.isEmpty) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionTitle('Flat Panel Detector Parameters'),
+            const _SectionTitle('Flat Panel Detector Parameters'),
             const SizedBox(height: AppSpacing.md),
             _FormCard(
               children: [
@@ -1200,7 +1204,7 @@ class _WarrantyStepper extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
           color: AppColors.surface2,
           borderRadius: AppRadius.inputField,

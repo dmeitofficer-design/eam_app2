@@ -230,7 +230,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.search_off_rounded,
-                                      size: 48, color: AppColors.surface3),
+                                      size: 48, color: AppColors.surface3,),
                                   const SizedBox(height: AppSpacing.sm),
                                   Text(
                                     state.hasActiveFilters
@@ -407,7 +407,7 @@ class _DropdownChip<T> extends StatelessWidget {
                     final item = entry.value;
                     final rowBgColor = index.isEven ? AppColors.surface4 : AppColors.surface1;
 
-                    return Container(
+                    return DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
@@ -435,7 +435,7 @@ class _DropdownChip<T> extends StatelessWidget {
                         onTap: () => Navigator.pop(context, item),
                       ),
                     );
-                  }).toList(),
+                  }),
                   const SizedBox(height: AppSpacing.md),
                 ],
               ),
@@ -553,7 +553,7 @@ class _ClientCard extends StatelessWidget {
                     Row(
                       children: [
                         Icon(Icons.location_on_rounded,
-                            size: 11, color: AppColors.textTertiary),
+                            size: 11, color: AppColors.textTertiary,),
                         const SizedBox(width: 2),
                         Expanded(
                           child: Text(
@@ -583,7 +583,7 @@ class _ClientCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textTertiary),
+                  color: AppColors.textTertiary,),
             ],
           ),
         ),

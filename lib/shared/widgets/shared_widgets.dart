@@ -2,7 +2,7 @@
 //
 // Re-export barrel + all shared primitive widgets.
 
-library shared_widgets;
+library;
 
 export 'app_button.dart';
 export 'status_chip.dart';

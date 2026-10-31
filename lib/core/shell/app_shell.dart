@@ -132,7 +132,7 @@ class _DesktopShellState extends State<_DesktopShell> {
                       InkWell(
                         onTap: () => _handleGlobalRefresh(context),
                         borderRadius: BorderRadius.circular(AppRadius.xs),
-                        splashColor: AppColors.accent.withOpacity(0.3),
+                        splashColor: AppColors.accent.withValues(alpha: 0.3),
                         child: Container(
                           width: 36,
                           height: 36,

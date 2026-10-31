@@ -133,7 +133,7 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
       isLoading: true,
       divisionFilter: () => null,
       facilityTypeFilter: () => null,
-    ));
+    ),);
     await _loadClients(emit);
   }
 
@@ -145,7 +145,7 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
       divisionFilter: () => event.division,
       isLoading: true,
       searchQuery: '',
-    ));
+    ),);
     await _loadClients(emit);
   }
 
@@ -157,7 +157,7 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
       facilityTypeFilter: () => event.facilityType,
       isLoading: true,
       searchQuery: '',
-    ));
+    ),);
     await _loadClients(emit);
   }
 
@@ -183,7 +183,7 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
       emit(state.copyWith(
         isLoading: false,
         error: ErrorFormatter.format(e),
-      ));
+      ),);
     }
   }
 }

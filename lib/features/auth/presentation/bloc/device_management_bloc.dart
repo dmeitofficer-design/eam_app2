@@ -32,7 +32,7 @@ class DeviceManagementBloc extends Bloc<DeviceManagementEvent, DeviceManagementS
     emit(DeviceManagementLoading());
     try {
       await _authRepository.logOutOtherDevices();
-      emit(SessionActionSuccess("Successfully terminated all other active sessions."));
+      emit(SessionActionSuccess('Successfully terminated all other active sessions.'));
     } catch (e) {
       emit(DeviceManagementFailure(e.toString()));
     }

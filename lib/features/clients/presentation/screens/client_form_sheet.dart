@@ -157,7 +157,7 @@ Row(
         children: [
           const _FieldLabel('Division'),
           DropdownButtonFormField<DivisionType>(
-            value: _division,
+            initialValue: _division,
             isExpanded: true, // 1. FIX: Forces the dropdown row content to stay inside its layout bounds
             decoration: const InputDecoration(),
             dropdownColor: AppColors.surface1,
@@ -168,7 +168,7 @@ Row(
                         d.label,
                         overflow: TextOverflow.ellipsis, // 2. FIX: Safely truncates text with '...' if it's too long
                       ),
-                    ))
+                    ),)
                 .toList(),
             onChanged: (v) => setState(() => _division = v!),
           ),
@@ -182,7 +182,7 @@ Row(
         children: [
           const _FieldLabel('Facility Type'),
           DropdownButtonFormField<FacilityType>(
-            value: _facilityType,
+            initialValue: _facilityType,
             isExpanded: true, // Apply here too to safeguard against long facility names
             decoration: const InputDecoration(),
             dropdownColor: AppColors.surface1,
@@ -193,7 +193,7 @@ Row(
                         f.label,
                         overflow: TextOverflow.ellipsis, // Safeguard text truncation
                       ),
-                    ))
+                    ),)
                 .toList(),
             onChanged: (v) => setState(() => _facilityType = v!),
           ),

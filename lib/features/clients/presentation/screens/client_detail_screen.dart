@@ -366,10 +366,10 @@ class _ClientProfileCard extends StatelessWidget {
             trailing: client.contactPersonPhone.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.call_rounded,
-                        color: AppColors.success, size: 20),
+                        color: AppColors.success, size: 20,),
                     tooltip: 'Call individual contact',
                     style: IconButton.styleFrom(
-                      backgroundColor: AppColors.success.withOpacity(0.12),
+                      backgroundColor: AppColors.success.withValues(alpha: 0.12),
                       padding: const EdgeInsets.all(AppSpacing.xs),
                     ),
                     onPressed: () => _makeCall(context, client.contactPersonPhone),
@@ -520,10 +520,10 @@ class _MachinesList extends StatelessWidget {
                     child: Column(
                       children: [
                         Icon(Icons.precision_manufacturing_rounded,
-                            size: 40, color: AppColors.surface3),
+                            size: 40, color: AppColors.surface3,),
                         const SizedBox(height: AppSpacing.sm),
                         Text('No machines installed yet.',
-                            style: theme.textTheme.bodyMedium),
+                            style: theme.textTheme.bodyMedium,),
                         if (isAdmin) ...[
                           const SizedBox(height: AppSpacing.sm),
                           OutlinedButton(
@@ -548,7 +548,7 @@ class _MachinesList extends StatelessWidget {
                             machine: m,
                             clientId: clientId,
                           ),
-                        ))
+                        ),)
                     .toList(),
               );
             }
@@ -574,13 +574,13 @@ class _MachineCard extends StatelessWidget {
     final String warrantyLabel;
     if (!machine.isWarrantyActive) {
       warrantyColor = AppColors.error;
-      warrantyLabel = 'Expired';
+      warrantyLabel = 'Warrenty Expired';
     } else if (machine.isWarrantyExpiringSoon) {
       warrantyColor = AppColors.warning;
-      warrantyLabel = '${machine.warrantyLeftMonths}m left';
+      warrantyLabel = '${machine.warrantyLeftMonths} Month remaining';
     } else {
       warrantyColor = AppColors.success;
-      warrantyLabel = '${machine.warrantyLeftMonths}m left';
+      warrantyLabel = '${machine.warrantyLeftMonths} Month remaining';
     }
 
     return Material(
@@ -645,7 +645,7 @@ class _MachineCard extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.calendar_today_rounded,
-                                size: 12, color: AppColors.textTertiary),
+                                size: 12, color: AppColors.textTertiary,),
                             const SizedBox(width: 4),
                             Text(
                               'Installed ${fmt.format(machine.installationDate)}',
@@ -658,7 +658,7 @@ class _MachineCard extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.build_rounded,
-                                  size: 12, color: AppColors.textTertiary),
+                                  size: 12, color: AppColors.textTertiary,),
                               const SizedBox(width: 4),
                               Text(
                                 '${machine.parts.length} part(s)',
@@ -671,7 +671,7 @@ class _MachineCard extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.engineering_rounded,
-                                  size: 12, color: AppColors.textTertiary),
+                                  size: 12, color: AppColors.textTertiary,),
                               const SizedBox(width: 4),
                               Text(
                                 '${machine.engineers.length} engineer(s)',
@@ -683,7 +683,7 @@ class _MachineCard extends StatelessWidget {
                     ),
                   ),
                   Icon(Icons.chevron_right_rounded,
-                      size: 18, color: AppColors.textTertiary),
+                      size: 18, color: AppColors.textTertiary,),
                 ],
               ),
             ],
@@ -706,9 +706,9 @@ class _WarrantyBadge extends StatelessWidget {
           vertical: AppSpacing.xxs,
         ),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: AppRadius.chip,
-          border: Border.all(color: color.withOpacity(0.4)),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
         ),
         child: Text(
           label,

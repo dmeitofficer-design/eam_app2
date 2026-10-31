@@ -54,7 +54,7 @@ class AppFeedback {
           backgroundColor: AppColors.surface2,
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.button,
-            side: BorderSide(color: accent.withOpacity(0.3)),
+            side: BorderSide(color: accent.withValues(alpha: 0.3)),
           ),
         ),
       );

@@ -211,11 +211,11 @@ class _ConfigSectionState extends State<_ConfigSection> {
                   final value = entry.value;
                   final isEven = i.isEven;
 
-                  return Container(
+                  return ColoredBox(
                     // Alternating background colors
                     color: isEven
                         ? AppColors.surface1
-                        : AppColors.surface3.withOpacity(0.5),
+                        : AppColors.surface3.withValues(alpha: 0.5),
                     child: Column(
                       children: [
                         ListTile(
@@ -230,7 +230,7 @@ class _ConfigSectionState extends State<_ConfigSection> {
                             decoration: BoxDecoration(
                               color: isEven
                                   ? AppColors.surface2
-                                  : AppColors.surface3.withOpacity(0.5),
+                                  : AppColors.surface3.withValues(alpha: 0.5),
                               borderRadius:
                                   BorderRadius.circular(AppRadius.xs),
                             ),
@@ -258,7 +258,7 @@ class _ConfigSectionState extends State<_ConfigSection> {
                           Divider(
                             height: 1,
                             thickness: 1,
-                            color: AppColors.surface2.withOpacity(0.6),
+                            color: AppColors.surface2.withValues(alpha: 0.6),
                           ),
                       ],
                     ),

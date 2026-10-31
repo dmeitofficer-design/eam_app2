@@ -6,7 +6,7 @@ extension StringExt on String {
     return split(' ')
         .map((w) => w.isEmpty
             ? w
-            : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+            : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',)
         .join(' ');
   }
 

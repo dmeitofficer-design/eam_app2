@@ -82,11 +82,11 @@ class _AddClientViewState extends State<_AddClientView> {
 
   // ── Contact fields ───────────────────────────────────────
   late final _contactNameCtrl = TextEditingController(
-      text: widget.existingClient?.contactPersonName ?? '');
+      text: widget.existingClient?.contactPersonName ?? '',);
   late final _contactDesigCtrl = TextEditingController(
-      text: widget.existingClient?.contactPersonDesignation ?? '');
+      text: widget.existingClient?.contactPersonDesignation ?? '',);
   late final _contactPhoneCtrl = TextEditingController(
-      text: widget.existingClient?.contactPersonPhone ?? '');
+      text: widget.existingClient?.contactPersonPhone ?? '',);
       final List<String> _designationOptions = const [
   'Director, Medical',
   'Managing Director',
@@ -317,7 +317,7 @@ class _AddClientViewState extends State<_AddClientView> {
             .map((p) => MachinePart.draft(
                   partName: p.nameCtrl.text.trim(),
                   serialNumber: p.serialCtrl.text.trim(),
-                ))
+                ),)
             .toList();
 
         final typeEnum = MachineType.fromString(_machineType);
@@ -393,7 +393,7 @@ class _AddClientViewState extends State<_AddClientView> {
       }
 
       if (mounted) {
-        context.read<ClientsBloc>().add(ClientsFetchRequested());
+        context.read<ClientsBloc>().add(const ClientsFetchRequested());
         AppFeedback.success(
           context,
           _isEdit ? 'Client updated.' : 'Client created successfully.',
@@ -493,14 +493,14 @@ class _AddClientViewState extends State<_AddClientView> {
                           right: _Field(
                             label: 'Division',
                             child: DropdownButtonFormField<DivisionType>(
-                              value: _division,
+                              initialValue: _division,
                               dropdownColor: AppColors.surface2,
                               decoration: const InputDecoration(),
                               items: DivisionType.values
                                   .map((d) => DropdownMenuItem(
                                         value: d,
                                         child: Text(d.label),
-                                      ))
+                                      ),)
                                   .toList(),
                               onChanged: (v) => setState(() => _division = v!),
                             ),
@@ -510,14 +510,14 @@ class _AddClientViewState extends State<_AddClientView> {
                           left: _Field(
                             label: 'Facility Type',
                             child: DropdownButtonFormField<FacilityType>(
-                              value: _facilityType,
+                              initialValue: _facilityType,
                               dropdownColor: AppColors.surface2,
                               decoration: const InputDecoration(),
                               items: FacilityType.values
                                   .map((f) => DropdownMenuItem(
                                         value: f,
                                         child: Text(f.label),
-                                      ))
+                                      ),)
                                   .toList(),
                               onChanged: (v) =>
                                   setState(() => _facilityType = v!),
@@ -527,7 +527,7 @@ class _AddClientViewState extends State<_AddClientView> {
                             builder: (context, cfg) => _Field(
                               label: 'Genre / Specialty',
                               child: DropdownButtonFormField<String>(
-                                value: (cfg.genres.contains(_genre) &&
+                                initialValue: (cfg.genres.contains(_genre) &&
                                         _genre.isNotEmpty)
                                     ? _genre
                                     : null,
@@ -578,7 +578,7 @@ class _AddClientViewState extends State<_AddClientView> {
         return _designationOptions;
       }
       return _designationOptions.where((option) =>
-          option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+          option.toLowerCase().contains(textEditingValue.text.toLowerCase()),);
     },
     onSelected: (String selection) {
       _contactDesigCtrl.text = selection;
@@ -659,7 +659,7 @@ class _AddClientViewState extends State<_AddClientView> {
                           Switch(
                             value: _addMachine,
                             onChanged: (v) => setState(() => _addMachine = v),
-                            activeColor: AppColors.accent,
+                            activeThumbColor: AppColors.accent,
                           ),
                         ],
                       ),
@@ -920,7 +920,7 @@ class _MachineSection extends StatelessWidget {
                   left: _Field(
                     label: 'Machine Type',
                     child: DropdownButtonFormField<String>(
-                      value: (cfg.machineTypes.contains(machineType) &&
+                      initialValue: (cfg.machineTypes.contains(machineType) &&
                               machineType.isNotEmpty)
                           ? machineType
                           : null,
@@ -931,7 +931,7 @@ class _MachineSection extends StatelessWidget {
                           .map((t) => DropdownMenuItem(
                                 value: t,
                                 child: Text(t),
-                              ))
+                              ),)
                           .toList(),
                       onChanged: (v) => onTypeChanged(v ?? ''),
                     ),
@@ -939,7 +939,7 @@ class _MachineSection extends StatelessWidget {
                   right: _Field(
                     label: 'Brand',
                     child: DropdownButtonFormField<String>(
-                      value: (cfg.brands.contains(brand) && brand.isNotEmpty)
+                      initialValue: (cfg.brands.contains(brand) && brand.isNotEmpty)
                           ? brand
                           : null,
                       dropdownColor: AppColors.surface2,
@@ -949,7 +949,7 @@ class _MachineSection extends StatelessWidget {
                           .map((b) => DropdownMenuItem(
                                 value: b,
                                 child: Text(b),
-                              ))
+                              ),)
                           .toList(),
                       onChanged: (v) => onBrandChanged(v ?? ''),
                     ),
@@ -1034,9 +1034,9 @@ class _MachineSection extends StatelessWidget {
                                     }
                                   : null,
                               
-                              selectedColor: AppColors.accent.withOpacity(0.2),
+                              selectedColor: AppColors.accent.withValues(alpha: 0.2),
                               checkmarkColor: AppColors.accent,
-                              disabledColor: Colors.orange.withOpacity(0.12),
+                              disabledColor: Colors.orange.withValues(alpha: 0.12),
                               side: BorderSide(
                                 color: isAvailable 
                                     ? (isSelected ? AppColors.accent : AppColors.surface3) 
@@ -1100,7 +1100,7 @@ class _MachineSection extends StatelessWidget {
             ],
 
             // ── PC Configuration Block with Animated View Gating ───
-            _SectionTitle('PC Configuration (Optional)'),
+            const _SectionTitle('PC Configuration (Optional)'),
             const SizedBox(height: AppSpacing.xs),
             
             SwitchListTile.adaptive(
@@ -1171,7 +1171,7 @@ class _MachineSection extends StatelessWidget {
                             right: _Field(
                               label: 'Number of LAN ports',
                               child: DropdownButtonFormField<String>(
-                                value: pcLanPorts,
+                                initialValue: pcLanPorts,
                                 isExpanded: true,
                                 dropdownColor: AppColors.surface2,
                                 items: ['1', '2', '3', '4']
@@ -1199,7 +1199,7 @@ class _MachineSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionTitle('Printer Specifications'),
+            const _SectionTitle('Printer Specifications'),
             const SizedBox(height: AppSpacing.md),
             _FormCard(
               children: [
@@ -1267,7 +1267,7 @@ class _MachineSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionTitle('X-Ray Structural Components'),
+            const _SectionTitle('X-Ray Structural Components'),
             const SizedBox(height: AppSpacing.md),
             _FormCard(
               children: [
@@ -1301,7 +1301,7 @@ class _MachineSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionTitle('Flat Panel Detector Parameters'),
+            const _SectionTitle('Flat Panel Detector Parameters'),
             const SizedBox(height: AppSpacing.md),
             _FormCard(
               children: [
@@ -1348,7 +1348,7 @@ class _MachineSection extends StatelessWidget {
                   left: _Field(
                     label: 'License Type',
                     child: DropdownButtonFormField<String>(
-                      value: fpdLicenseType,
+                      initialValue: fpdLicenseType,
                       isExpanded: true,
                       dropdownColor: AppColors.surface2,
                       items: ['Hardware/Dongle Key', 'Software Key', 'Demo']
@@ -1547,7 +1547,7 @@ class _PdfPickerCard extends StatelessWidget {
             ? Row(
                 children: [
                   const Icon(Icons.picture_as_pdf_rounded,
-                      color: AppColors.error, size: 28),
+                      color: AppColors.error, size: 28,),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
@@ -1557,7 +1557,7 @@ class _PdfPickerCard extends StatelessWidget {
                         Text('PDF selected — ready to upload',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: AppColors.success,
-                            )),
+                            ),),
                       ],
                     ),
                   ),
@@ -1572,15 +1572,15 @@ class _PdfPickerCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.upload_file_rounded,
-                      color: AppColors.textTertiary),
+                      color: AppColors.textTertiary,),
                   const SizedBox(width: AppSpacing.sm),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Tap to select PDF receipt',
-                          style: theme.textTheme.bodyMedium),
+                          style: theme.textTheme.bodyMedium,),
                       Text('Max 50 MB · PDF only',
-                          style: theme.textTheme.bodySmall),
+                          style: theme.textTheme.bodySmall,),
                     ],
                   ),
                 ],
@@ -1670,7 +1670,7 @@ class _WarrantyStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface2,
         borderRadius: AppRadius.inputField,

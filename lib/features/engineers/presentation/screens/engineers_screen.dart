@@ -98,7 +98,7 @@ class _EngineersScreenState extends State<EngineersScreen> {
               const SizedBox(height: AppSpacing.md),
 
               // ── Search Input Bar ────────────────────────────────
-              Container(
+              DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.surface1,
                   borderRadius: AppRadius.card,
@@ -327,8 +327,8 @@ class _EngineerCard extends StatelessWidget {
             CircleAvatar(
               radius: 24,
               backgroundColor: isAvailable 
-                  ? Colors.blue.withOpacity(0.12) 
-                  : Colors.orange.withOpacity(0.12),
+                  ? Colors.blue.withValues(alpha: 0.12) 
+                  : Colors.orange.withValues(alpha: 0.12),
               child: Text(
                 engineer.name.isNotEmpty ? engineer.name[0].toUpperCase() : '?',
                 style: TextStyle(
@@ -462,7 +462,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
       decoration: BoxDecoration(
-        color: isAvailable ? Colors.blue.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+        color: isAvailable ? Colors.blue.withValues(alpha: 0.2) : Colors.orange.withValues(alpha: 0.2),
         borderRadius: AppRadius.chip,
         border: Border.all(
           color: isAvailable ? Colors.blue : Colors.orange,
@@ -559,8 +559,8 @@ class _ErrorCard extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: isNetworkIssue 
-                      ? Colors.orange.withOpacity(0.1) 
-                      : AppColors.error.withOpacity(0.1),
+                      ? Colors.orange.withValues(alpha: 0.1) 
+                      : AppColors.error.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

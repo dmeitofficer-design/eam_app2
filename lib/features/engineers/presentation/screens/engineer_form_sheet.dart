@@ -153,7 +153,7 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.2,
                     color: AppColors.textTertiary,
-                  )),
+                  ),),
               const SizedBox(height: AppSpacing.xs),
               TextFormField(
                 controller: _nameCtrl,
@@ -170,7 +170,7 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.2,
                     color: AppColors.textTertiary,
-                  )),
+                  ),),
               const SizedBox(height: AppSpacing.xs),
               TextFormField(
                 controller: _designationCtrl,
@@ -186,7 +186,7 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.2,
                     color: AppColors.textTertiary,
-                  )),
+                  ),),
               const SizedBox(height: AppSpacing.xs),
               TextFormField(
                 controller: _phoneCtrl,
@@ -203,7 +203,7 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.2,
                     color: AppColors.textTertiary,
-                  )),
+                  ),),
               const SizedBox(height: AppSpacing.xs),
               
               SwitchListTile(
@@ -216,10 +216,10 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
                   style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
                 ),
                 value: _isAvailable,
-                activeColor: Colors.blue,
-                activeTrackColor: Colors.blue.withOpacity(0.3),
+                activeThumbColor: Colors.blue,
+                activeTrackColor: Colors.blue.withValues(alpha: 0.3),
                 inactiveThumbColor: Colors.orange,
-                inactiveTrackColor: Colors.orange.withOpacity(0.3),
+                inactiveTrackColor: Colors.orange.withValues(alpha: 0.3),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (bool value) {
                   setState(() {
@@ -234,7 +234,7 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.2,
                     color: AppColors.textTertiary,
-                  )),
+                  ),),
               const SizedBox(height: AppSpacing.xs),
 
               SwitchListTile(
@@ -249,8 +249,8 @@ class _EngineerFormSheetState extends State<EngineerFormSheet> {
                   style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
                 ),
                 value: _isActive,
-                activeColor: Colors.green,
-                activeTrackColor: Colors.green.withOpacity(0.3),
+                activeThumbColor: Colors.green,
+                activeTrackColor: Colors.green.withValues(alpha: 0.3),
                 inactiveThumbColor: AppColors.textTertiary,
                 inactiveTrackColor: AppColors.surface3,
                 contentPadding: EdgeInsets.zero,

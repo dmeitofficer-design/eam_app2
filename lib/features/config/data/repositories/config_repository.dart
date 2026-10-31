@@ -83,7 +83,7 @@ class ConfigRepository {
   }
 
   Future<MachineConfig> toggleOption(
-      String id, bool isActive) async {
+      String id, bool isActive,) async {
     final data = await _client
         .from(_table)
         .update({'is_active': isActive})

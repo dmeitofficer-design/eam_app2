@@ -112,7 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 12,
                 offset: const Offset(0, -3),
               ),
@@ -148,7 +148,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Icon(
                         Icons.person_rounded,
                         size: 36,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -164,7 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Text(
                       profile.isAdmin ? 'Administrator Access' : 'View-Only Access',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.4),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -175,7 +175,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       dense: true,
                       leading: Icon(
                         isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded, 
-                        color: theme.colorScheme.onSurface.withOpacity(0.7), 
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7), 
                         size: 20,
                       ),
                       title: Text(
@@ -197,7 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     
                     ListTile(
                       dense: true,
-                      leading: Icon(Icons.lock_reset_rounded, color: theme.colorScheme.onSurface.withOpacity(0.7), size: 20),
+                      leading: Icon(Icons.lock_reset_rounded, color: theme.colorScheme.onSurface.withValues(alpha: 0.7), size: 20),
                       title: Text(
                         'Change Password',
                         style: TextStyle(
@@ -300,7 +300,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Text(
                               'Asset overview at a glance.',
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -315,7 +315,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           IconButton(
                             icon: Icon(
                               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                             tooltip: 'Toggle Theme Mode',
                             onPressed: () => _toggleTheme(context),
@@ -370,7 +370,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         'PLATFORM',
                         style: theme.textTheme.labelSmall?.copyWith(
                           letterSpacing: 1.5,
-                          color: theme.colorScheme.onSurface.withOpacity(0.4),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -387,10 +387,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         : 'You have View-Only access — read only.',
                     accent: profile?.isAdmin == true
                         ? AppColors.accent
-                        : theme.colorScheme.onSurface.withOpacity(0.4),
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  _InfoCard(
+                  const _InfoCard(
                     icon: Icons.cloud_sync_rounded,
                     title: 'Live Sync',
                     subtitle: 'Data is synced directly from Supabase in real time.',
@@ -513,13 +513,13 @@ class _MetricCard extends StatelessWidget {
                 Icon(
                   metric.icon, 
                   size: 20, 
-                  color: theme.colorScheme.onSurface.withOpacity(0.4),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
                 if (metric.routePath != null)
                   Icon(
                     Icons.arrow_forward_rounded, 
                     size: 16, 
-                    color: theme.colorScheme.onSurface.withOpacity(0.4),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
               ],
             ),
@@ -540,7 +540,7 @@ class _MetricCard extends StatelessWidget {
                 Text(
                   metric.label,
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -548,7 +548,7 @@ class _MetricCard extends StatelessWidget {
                 Text(
                   metric.sublabel,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.4),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -620,7 +620,7 @@ class _RoleBadge extends StatelessWidget {
           Text(
             isAdmin ? 'ADMIN' : 'VIEW ONLY',
             style: theme.textTheme.labelSmall?.copyWith(
-              color: isAdmin ? const Color.fromARGB(255, 241, 248, 255) : theme.colorScheme.onSurface.withOpacity(0.6),
+              color: isAdmin ? const Color.fromARGB(255, 241, 248, 255) : theme.colorScheme.onSurface.withValues(alpha: 0.6),
               letterSpacing: 1.0,
             ),
           ),
@@ -628,7 +628,7 @@ class _RoleBadge extends StatelessWidget {
           Icon(
             Icons.arrow_drop_down_rounded,
             size: 16,
-            color: isAdmin ? Colors.white : theme.colorScheme.onSurface.withOpacity(0.6),
+            color: isAdmin ? Colors.white : theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ],
       ),
@@ -668,7 +668,7 @@ class _InfoCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.12),
+              color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(icon, color: accent, size: 20),
@@ -688,7 +688,7 @@ class _InfoCard extends StatelessWidget {
                 Text(
                   subtitle, 
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -709,9 +709,9 @@ class _ErrorCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.08),
+        color: AppColors.error.withValues(alpha: 0.08),
         borderRadius: AppRadius.card,
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
