@@ -8,6 +8,8 @@ import '../theme/theme_controller.dart';
 import '../constants/app_constants.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/config/presentation/widgets/developer_tile.dart';
+import '../../features/notifications/presentation/notifications_cubit.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 
 // Import your Blocs/Events to access them inside the refresh action
 import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
@@ -33,36 +35,50 @@ class AppShell extends StatelessWidget {
       label: 'Engineers',
       path: '/engineers',
     ),
-    _NavDest(
-      icon: Icons.gpp_good_rounded,
-      label: 'Device Security',
-      path: '/device-management',
-    ),
   ];
 
-  int _selectedIndex(BuildContext context) {
+  static const _usersDestination = _NavDest(
+    icon: Icons.manage_accounts_rounded,
+    label: 'Users',
+    path: '/users',
+  );
+
+  int _selectedIndex(BuildContext context, List<_NavDest> destinations) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/clients')) return 1;
-    if (location.startsWith('/engineers')) return 2;
-    if (location.startsWith('/device-management')) return 3;
-    return 0;
+    final idx = destinations.indexWhere((d) => location.startsWith(d.path));
+    return idx < 0 ? 0 : idx;
   }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= AppConstants.tabletBreakpoint;
-    final selectedIdx = _selectedIndex(context);
+    final authState = context.watch<AuthBloc>().state;
+    final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
+    final awaitingReview =
+        context.select<NotificationsCubit, int>((c) => c.state.awaitingReview);
+    final destinations = [
+      ..._destinations,
+      if (isAdmin)
+        _NavDest(
+          icon: Icons.fact_check_rounded,
+          label: 'Approvals',
+          path: '/approvals',
+          badge: awaitingReview,
+        ),
+      if (isAdmin) _usersDestination,
+    ];
+    final selectedIdx = _selectedIndex(context, destinations);
 
     if (isDesktop) {
       return _DesktopShell(
-        destinations: _destinations,
+        destinations: destinations,
         selectedIndex: selectedIdx,
         child: child,
       );
     } else {
       return _MobileShell(
-        destinations: _destinations,
+        destinations: destinations,
         selectedIndex: selectedIdx,
         child: child,
       );
@@ -164,6 +180,9 @@ class _DesktopShellState extends State<_DesktopShell> {
                           ],
                         ),
                       ),
+                      NotificationsBell(
+                        color: isDark ? AppColors.textSecondary : AppColors.lightTextSecondary,
+                      ),
                     ],
                   ),
                 ),
@@ -254,12 +273,12 @@ class _DesktopShellState extends State<_DesktopShell> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                profile.fullName ?? 'User',
+                                profile.displayName,
                                 style: theme.textTheme.labelMedium,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                profile.role.name.toUpperCase(),
+                                profile.role.label.toUpperCase(),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: const Color.fromARGB(255, 99, 198, 255),
                                   letterSpacing: 0.8,
@@ -278,7 +297,9 @@ class _DesktopShellState extends State<_DesktopShell> {
                           tooltip: 'Account Options',
                           position: PopupMenuPosition.under,
                           onSelected: (value) {
-                            if (value == 'password') {
+                            if (value == 'profile') {
+                              context.go('/profile');
+                            } else if (value == 'password') {
                               context.go('/change-password');
                             } else if (value == 'security') {
                               context.go('/device-management');
@@ -287,6 +308,16 @@ class _DesktopShellState extends State<_DesktopShell> {
                             }
                           },
                           itemBuilder: (BuildContext context) => [
+                            const PopupMenuItem<String>(
+                              value: 'profile',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.person_rounded, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('My Profile'),
+                                ],
+                              ),
+                            ),
                             const PopupMenuItem<String>(
                               value: 'password',
                               child: Row(
@@ -384,15 +415,22 @@ class _RailItem extends StatelessWidget {
                       : (isDark ? AppColors.textTertiary : AppColors.lightTextTertiary),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  dest.label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: isSelected
-                        ? const Color.fromARGB(255, 56, 199, 255)
-                        : (isDark ? AppColors.textSecondary : AppColors.lightTextSecondary),
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    dest.label,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: isSelected
+                          ? const Color.fromARGB(255, 56, 199, 255)
+                          : (isDark ? AppColors.textSecondary : AppColors.lightTextSecondary),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
+                if (dest.badge > 0)
+                  Badge(
+                    label: Text('${dest.badge}'),
+                    backgroundColor: AppColors.warning,
+                  ),
               ],
             ),
           ),
@@ -425,7 +463,15 @@ class _MobileShell extends StatelessWidget {
         selectedIndex: selectedIndex,
         onDestinationSelected: (idx) => context.go(destinations[idx].path),
         destinations: destinations
-            .map((d) => NavigationDestination(icon: Icon(d.icon), label: d.label))
+            .map((d) => NavigationDestination(
+                  icon: Badge(
+                    isLabelVisible: d.badge > 0,
+                    label: Text('${d.badge}'),
+                    backgroundColor: AppColors.warning,
+                    child: Icon(d.icon),
+                  ),
+                  label: d.label,
+                ))
             .toList(),
       ),
     );
@@ -437,7 +483,9 @@ class _NavDest {
     required this.icon,
     required this.label,
     required this.path,
+    this.badge = 0,
   });
+  final int badge;
   final IconData icon;
   final String label;
   final String path;

@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/error_formatter.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../bloc/auth_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,9 +14,10 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+enum _LoginView { signIn, forgotPassword }
+
 class _LoginScreenState extends State<LoginScreen> {
-  // View Toggle State
-  bool _isRegistering = false;
+  _LoginView _view = _LoginView.signIn;
 
   // Sign In Controllers & Domain Selections
   final _emailCtrl = TextEditingController();
@@ -23,20 +25,15 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureSignIn = true;
   String _signInDomain = '@gmail.com'; // Default Domain Selector
 
-  // Create Account Controllers & Domain Selections
-  final _regEmailCtrl       = TextEditingController();
-  final _regPassCtrl        = TextEditingController();
-  final _regConfirmPassCtrl = TextEditingController(); 
-  final _superAdminEmailCtrl = TextEditingController();
-  final _superAdminPassCtrl  = TextEditingController();
-  
-  bool _obscureRegPass        = true;
-  bool _obscureRegConfirmPass = true; 
-  bool _obscureSuperAdminPass = true;
-  String _selectedRole        = AppStrings.roleUser;
-  
-  String _regUserDomain    = '@gmail.com';   // Default New User Domain Selector
-  String _superAdminDomain = '@gmail.com';   // Default Super Admin Approver Domain Selector
+  // Forgot Password Controllers
+  final _resetEmailCtrl   = TextEditingController();
+  final _resetCodeCtrl    = TextEditingController();
+  final _resetPassCtrl    = TextEditingController();
+  final _resetConfirmCtrl = TextEditingController();
+  String _resetDomain = '@gmail.com';
+  bool _resetCodeSent = false;
+  bool _resetBusy = false;
+  bool _obscureResetPass = true;
 
   // List of available domains
   final List<String> _domains = ['@gmail.com', '@dmebd.com', '@yahoo.com'];
@@ -45,20 +42,23 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
-    _regEmailCtrl.dispose();
-    _regPassCtrl.dispose();
-    _regConfirmPassCtrl.dispose();
-    _superAdminEmailCtrl.dispose();
-    _superAdminPassCtrl.dispose();
+    _resetEmailCtrl.dispose();
+    _resetCodeCtrl.dispose();
+    _resetPassCtrl.dispose();
+    _resetConfirmCtrl.dispose();
     super.dispose();
   }
+
+  /// A full address typed into the username field wins over the domain picker.
+  String _composeEmail(String username, String domain) =>
+      username.contains('@') ? username : '$username$domain';
 
   void _submitSignIn() {
     final username = _emailCtrl.text.trim();
     final pass  = _passCtrl.text;
     if (username.isEmpty || pass.isEmpty) return;
 
-    final fullEmail = '$username$_signInDomain';
+    final fullEmail = _composeEmail(username, _signInDomain);
     final currentPlatform = Theme.of(context).platform.toString();
 
     context.read<AuthBloc>().add(
@@ -70,33 +70,79 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _submitCreateAccount() {
-    final regUser        = _regEmailCtrl.text.trim();
-    final regPass        = _regPassCtrl.text;
-    final regConfirmPass = _regConfirmPassCtrl.text;
-    final superAdminUser = _superAdminEmailCtrl.text.trim();
-    final superAdminPass = _superAdminPassCtrl.text;
+  void _openForgotPassword() {
+    setState(() {
+      _view = _LoginView.forgotPassword;
+      _resetCodeSent = false;
+      _resetEmailCtrl.text = _emailCtrl.text.trim();
+      _resetDomain = _signInDomain;
+      _resetCodeCtrl.clear();
+      _resetPassCtrl.clear();
+      _resetConfirmCtrl.clear();
+    });
+  }
 
-    if (regUser.isEmpty || regPass.isEmpty || regConfirmPass.isEmpty || superAdminUser.isEmpty || superAdminPass.isEmpty) {
-      _showErrorSnackBar('Please fill out all fields.');
+  String get _resetEmail =>
+      _composeEmail(_resetEmailCtrl.text.trim(), _resetDomain);
+
+  Future<void> _sendResetCode() async {
+    if (_resetEmailCtrl.text.trim().isEmpty) {
+      _showErrorSnackBar('Enter your username or email.');
       return;
     }
+    setState(() => _resetBusy = true);
+    try {
+      await context.read<AuthRepository>().sendPasswordResetCode(_resetEmail);
+      if (!mounted) return;
+      setState(() => _resetCodeSent = true);
+      _showSuccessSnackBar('A reset code was sent to $_resetEmail.');
+    } catch (e) {
+      if (mounted) _showErrorSnackBar(ErrorFormatter.format(e));
+    } finally {
+      if (mounted) setState(() => _resetBusy = false);
+    }
+  }
 
-    if (regPass != regConfirmPass) {
+  Future<void> _submitNewPassword() async {
+    final code = _resetCodeCtrl.text.trim();
+    final pass = _resetPassCtrl.text;
+    if (code.isEmpty) {
+      _showErrorSnackBar('Enter the code from the email.');
+      return;
+    }
+    if (pass.length < 8) {
+      _showErrorSnackBar('Password must be at least 8 characters.');
+      return;
+    }
+    if (pass != _resetConfirmCtrl.text) {
       _showErrorSnackBar('Passwords do not match. Please verify.');
       return;
     }
+    setState(() => _resetBusy = true);
+    try {
+      await context.read<AuthRepository>().resetPasswordWithCode(
+            email: _resetEmail,
+            code: code,
+            newPassword: pass,
+          );
+      if (!mounted) return;
+      _showSuccessSnackBar('Password updated. Signing you in…');
+      // The code signed the user in; load their profile and continue.
+      context.read<AuthBloc>().add(AuthStarted());
+    } catch (e) {
+      if (mounted) _showErrorSnackBar(ErrorFormatter.format(e));
+    } finally {
+      if (mounted) setState(() => _resetBusy = false);
+    }
+  }
 
-    final fullRegEmail = '$regUser$_regUserDomain';
-    final fullSuperAdminEmail = '$superAdminUser$_superAdminDomain';
-
-    context.read<AuthBloc>().add(
-      AuthRegisterRequested(
-        email: fullRegEmail,
-        password: regPass,
-        role: _selectedRole,
-        adminEmail: fullSuperAdminEmail,
-        adminPassword: superAdminPass,
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        content: Text(message),
       ),
     );
   }
@@ -132,28 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
-            _showErrorSnackBar(
-              state.message,
-              onRetry: _isRegistering ? _submitCreateAccount : _submitSignIn,
-            );
-          } 
-          else if (state is AuthRegisterSuccess) {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                backgroundColor: AppColors.success,
-                behavior: SnackBarBehavior.floating,
-                content: Text('Account successfully requested/created! Please sign in.'),
-              ),
-            );
-            setState(() {
-              _isRegistering = false; 
-              _regEmailCtrl.clear();
-              _regPassCtrl.clear();
-              _regConfirmPassCtrl.clear();
-              _superAdminEmailCtrl.clear();
-              _superAdminPassCtrl.clear();
-            });
+            _showErrorSnackBar(state.message, onRetry: _submitSignIn);
           }
         },
         builder: (context, state) {
@@ -166,8 +191,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   duration: const Duration(milliseconds: 300),
                   switchInCurve: Curves.easeInOutCubic,
                   switchOutCurve: Curves.easeInOutCubic,
-                  child: _isRegistering 
-                    ? _buildCreateAccountForm(theme, state)
+                  child: _view == _LoginView.forgotPassword
+                    ? _buildForgotPasswordForm(theme)
                     : _buildSignInForm(theme, state),
                 ),
               ),
@@ -226,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
             hintText: 'username',
             suffixIcon: _buildDomainDropdown(_signInDomain, (newValue) {
               if (newValue != null) setState(() => _signInDomain = newValue);
-            }, theme,),
+            }, theme),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -251,7 +276,17 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.xl),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: isLoading ? null : _openForgotPassword,
+            child: Text(
+              'Forgot password?',
+              style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
 
         ElevatedButton(
           onPressed: isLoading ? null : _submitSignIn, 
@@ -269,156 +304,121 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
 
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Need system access? ', style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)),
-            GestureDetector(
-              onTap: isLoading ? null : () => setState(() => _isRegistering = true),
-              child: Text(
-                'Create Account',
-                style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
+        Center(
+          child: Text(
+            'Need access? Ask your administrator to create an account.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary),
+          ),
         ),
       ],
     );
   }
 
-  // ── Layout 2: Super Admin Validated Registration Form ───────────────────
-  Widget _buildCreateAccountForm(ThemeData theme, AuthState state) {
-    final isLoading = state is AuthLoading;
+  // ── Layout 2: Forgot Password (emailed code) ─────────────────────────────
+  Widget _buildForgotPasswordForm(ThemeData theme) {
+    final busy = _resetBusy;
 
     return Column(
-      key: const ValueKey('RegisterForm'),
+      key: const ValueKey('ForgotPasswordForm'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Create Account', style: theme.textTheme.displaySmall),
+        Text('Reset Password', style: theme.textTheme.displaySmall),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Requires valid super admin clearance credentials to register.',
+          _resetCodeSent
+              ? 'Enter the code we emailed to $_resetEmail and choose a new password.'
+              : 'We will email you a code to reset your password.',
           style: theme.textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        _buildSectionDivider(theme, 'NEW USER CREDENTIALS'),
-
-        _buildFieldLabel(theme, 'NEW USERNAME'),
+        _buildFieldLabel(theme, 'USERNAME'),
         TextField(
-          controller: _regEmailCtrl,
-          enabled: !isLoading,
+          controller: _resetEmailCtrl,
+          enabled: !busy && !_resetCodeSent,
           keyboardType: TextInputType.text,
-          textInputAction: TextInputAction.next,
-          style: theme.textTheme.bodyLarge,
-          decoration: InputDecoration(
-            hintText: 'new.user',
-            suffixIcon: _buildDomainDropdown(_regUserDomain, (newValue) {
-              if (newValue != null) setState(() => _regUserDomain = newValue);
-            }, theme,),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-
-        _buildFieldLabel(theme, 'ACCOUNT PASSWORD'),
-        TextField(
-          controller: _regPassCtrl,
-          enabled: !isLoading,
-          obscureText: _obscureRegPass,
-          textInputAction: TextInputAction.next,
-          style: theme.textTheme.bodyLarge,
-          decoration: InputDecoration(
-            hintText: 'Minimum 8 characters',
-            suffixIcon: IconButton(
-              onPressed: () => setState(() => _obscureRegPass = !_obscureRegPass),
-              icon: Icon(_obscureRegPass ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: AppColors.textTertiary, size: 20),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-
-        _buildFieldLabel(theme, 'CONFIRM PASSWORD'),
-        TextField(
-          controller: _regConfirmPassCtrl,
-          enabled: !isLoading,
-          obscureText: _obscureRegConfirmPass,
-          textInputAction: TextInputAction.next,
-          style: theme.textTheme.bodyLarge,
-          decoration: InputDecoration(
-            hintText: 'Re-enter user password',
-            suffixIcon: IconButton(
-              onPressed: () => setState(() => _obscureRegConfirmPass = !_obscureRegConfirmPass),
-              icon: Icon(_obscureRegConfirmPass ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: AppColors.textTertiary, size: 20),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-
-        _buildFieldLabel(theme, 'ASSIGNED ACCOUNT ROLE'),
-        Row(
-          children: [
-            Expanded(child: _buildRoleSegment(AppStrings.roleUser, 'User Access', Icons.visibility_rounded, isLoading)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: _buildRoleSegment(AppStrings.roleAdmin, 'Admin Staff', Icons.shield_rounded, isLoading)),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xl),
-
-        _buildSectionDivider(theme, 'SUPER ADMIN AUTHORIZATION'),
-
-        _buildFieldLabel(theme, 'SUPER ADMIN USERNAME'),
-        TextField(
-          controller: _superAdminEmailCtrl,
-          enabled: !isLoading,
-          keyboardType: TextInputType.text,
-          textInputAction: TextInputAction.next,
-          style: theme.textTheme.bodyLarge,
-          decoration: InputDecoration(
-            hintText: 'super.admin',
-            suffixIcon: _buildDomainDropdown(_superAdminDomain, (newValue) {
-              if (newValue != null) setState(() => _superAdminDomain = newValue);
-            }, theme,),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-
-        _buildFieldLabel(theme, 'SUPER ADMIN PASSWORD'),
-        TextField(
-          controller: _superAdminPassCtrl,
-          enabled: !isLoading,
-          obscureText: _obscureSuperAdminPass,
           textInputAction: TextInputAction.done,
-          onSubmitted: (_) => isLoading ? null : _submitCreateAccount(),
+          onSubmitted: (_) => busy || _resetCodeSent ? null : _sendResetCode(),
           style: theme.textTheme.bodyLarge,
           decoration: InputDecoration(
-            hintText: '••••••••',
-            suffixIcon: IconButton(
-              onPressed: () => setState(() => _obscureSuperAdminPass = !_obscureSuperAdminPass),
-              icon: Icon(_obscureSuperAdminPass ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: AppColors.textTertiary, size: 20),
-            ),
+            hintText: 'username',
+            suffixIcon: _buildDomainDropdown(_resetDomain, (newValue) {
+              if (newValue != null && !_resetCodeSent) setState(() => _resetDomain = newValue);
+            }, theme),
           ),
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.md),
 
+        if (_resetCodeSent) ...[
+          _buildFieldLabel(theme, 'CODE FROM EMAIL'),
+          TextField(
+            controller: _resetCodeCtrl,
+            enabled: !busy,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            style: theme.textTheme.bodyLarge,
+            decoration: const InputDecoration(hintText: '123456'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          _buildFieldLabel(theme, 'NEW PASSWORD'),
+          TextField(
+            controller: _resetPassCtrl,
+            enabled: !busy,
+            obscureText: _obscureResetPass,
+            textInputAction: TextInputAction.next,
+            style: theme.textTheme.bodyLarge,
+            decoration: InputDecoration(
+              hintText: 'Minimum 8 characters',
+              suffixIcon: IconButton(
+                onPressed: () => setState(() => _obscureResetPass = !_obscureResetPass),
+                icon: Icon(_obscureResetPass ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: AppColors.textTertiary, size: 20),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          _buildFieldLabel(theme, 'CONFIRM PASSWORD'),
+          TextField(
+            controller: _resetConfirmCtrl,
+            enabled: !busy,
+            obscureText: _obscureResetPass,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => busy ? null : _submitNewPassword(),
+            style: theme.textTheme.bodyLarge,
+            decoration: const InputDecoration(hintText: 'Re-enter new password'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+
+        const SizedBox(height: AppSpacing.md),
         ElevatedButton(
-          onPressed: isLoading ? null : _submitCreateAccount, 
+          onPressed: busy ? null : (_resetCodeSent ? _submitNewPassword : _sendResetCode),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.accent,
             minimumSize: const Size(double.infinity, 52),
           ),
-          child: isLoading
+          child: busy
               ? const SizedBox(
                   height: 20,
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Authorize & Create Account'),
+              : Text(_resetCodeSent ? 'Set New Password' : 'Send Reset Code'),
         ),
+        if (_resetCodeSent)
+          Center(
+            child: TextButton(
+              onPressed: busy ? null : _sendResetCode,
+              child: Text('Resend code', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+          ),
         const SizedBox(height: AppSpacing.lg),
 
         Center(
           child: TextButton.icon(
-            onPressed: isLoading ? null : () => setState(() => _isRegistering = false),
+            onPressed: busy ? null : () => setState(() => _view = _LoginView.signIn),
             icon: Icon(Icons.arrow_back_rounded, size: 16, color: AppColors.textSecondary),
             label: Text('Back to Sign In', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
           ),
@@ -460,58 +460,6 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Text(
         title,
         style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.2, color: AppColors.textTertiary, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-
-  Widget _buildSectionDivider(ThemeData theme, String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.1, color: AppColors.accent, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Divider(color: AppColors.surface2, thickness: 1)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoleSegment(String roleValue, String label, IconData icon, bool isLoading) {
-    final isSelected = _selectedRole == roleValue;
-    return GestureDetector(
-      onTap: _isRegistering && !isLoading ? () => setState(() => _selectedRole = roleValue) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xs),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.accentSurface : AppColors.surface1,
-          borderRadius: AppRadius.card,
-          border: Border.all(color: isSelected ? AppColors.accent : AppColors.surface2, width: isSelected ? 1.5 : 1.0),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: isSelected ? AppColors.accent : AppColors.textTertiary),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

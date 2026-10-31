@@ -37,25 +37,41 @@ class AuthRepository {
     return _fetchProfile(response.user!.id);
   }
 
-  Future<void> registerWithAdminApproval({
-    required String email,
-    required String password,
-    required String role,
-    required String adminEmail,
-    required String adminPassword,
-  }) async {
-    final response = await _client.auth.signUp(
-      email: email,
-      password: password,
-      emailRedirectTo: 'medtrack://login', 
-      data: {
-        'role': role, 
-      },
-    );
+  // ==========================================
+  // PASSWORD RESET (email code)
+  // ==========================================
 
-    if (response.user == null) {
-      throw const AuthException('Registration failed: Could not generate a valid account.');
+  /// Emails a one-time recovery code. The Supabase "Reset Password" email
+  /// template must include {{ .Token }} for the code to appear.
+  Future<void> sendPasswordResetCode(String email) async {
+    await _client.auth.resetPasswordForEmail(email);
+  }
+
+  /// Signs the user in with the emailed code, then sets [newPassword].
+  Future<void> resetPasswordWithCode({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: code,
+      type: OtpType.recovery,
+    );
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  /// Saves the signed-in user's display name.
+  Future<UserProfile> updateFullName(String fullName) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const AuthException('No active user session detected.');
     }
+    await _client
+        .from(AppConstants.tableProfiles)
+        .update({'full_name': fullName.trim()})
+        .eq('id', user.id);
+    return _fetchProfile(user.id);
   }
 
   /// Changes password after re-authenticating the user with currentPassword
@@ -93,16 +109,65 @@ class AuthRepository {
   }
 
   Future<UserProfile?> getProfile() async {
-    final session = _client.auth.currentSession;
-    
-    if (session == null || session.isExpired) {
+    var session = _client.auth.currentSession;
+
+    if (session == null) {
       return null;
     }
-    
+
+    // On a cold start Supabase restores the stored session immediately but
+    // refreshes an expired access token in the background. Wait for a fresh
+    // token here instead of treating the user as logged out.
+    if (session.isExpired) {
+      final response = await _client.auth.refreshSession();
+      session = response.session;
+      if (session == null) return null;
+    }
+
+    // Confirm the session still exists on the server (it may have been
+    // terminated from another device).
+    await validateSession();
+
     return _fetchProfile(session.user.id);
   }
 
-  Future<UserProfile?> _fetchProfile(String userId) async {
+  /// Asks the auth server whether the current session is still valid.
+  /// Throws an [AuthException] if it was revoked or expired.
+  Future<void> validateSession() async {
+    final session = _client.auth.currentSession;
+    if (session == null) {
+      throw const AuthException('No active user session detected.');
+    }
+    await _client.auth.getUser(session.accessToken);
+  }
+
+  /// True when [e] means the session no longer exists on the server,
+  /// as opposed to a temporary network failure.
+  bool isSessionRevoked(Object e) {
+    if (e is! AuthException || e is AuthRetryableFetchException) return false;
+    const revokedCodes = {
+      'session_not_found',
+      'session_expired',
+      'refresh_token_not_found',
+      'refresh_token_already_used',
+      'user_not_found',
+      'bad_jwt',
+    };
+    return revokedCodes.contains(e.code) ||
+        e.statusCode == '401' ||
+        e.statusCode == '403';
+  }
+
+  /// Clears the session stored on this device only.
+  Future<void> signOutLocally() async {
+    try {
+      await _client.auth.signOut(scope: SignOutScope.local);
+    } catch (_) {
+      // The server-side session is already gone; local state is cleared anyway.
+    }
+  }
+
+  Future<UserProfile> _fetchProfile(String userId) async {
     final data = await _client
         .from(AppConstants.tableProfiles)
         .select()

@@ -13,6 +13,7 @@ import '../../../config/presentation/bloc/config_bloc.dart';
 import '../../../machines/data/models/installed_machine.dart';
 import '../../../machines/data/models/machine_part.dart';
 import '../../../machines/data/repositories/machines_repository.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../data/models/hospital_client.dart';
 import '../../data/repositories/clients_repository.dart';
 import '../bloc/clients_bloc.dart';
@@ -178,6 +179,11 @@ class _AddClientViewState extends State<_AddClientView> {
         );
       },
     );
+  }
+
+  bool get _isAdmin {
+    final auth = context.read<AuthBloc>().state;
+    return auth is AuthAuthenticated && auth.profile.isAdmin;
   }
 
   void _openModelEditor() {
@@ -394,9 +400,15 @@ class _AddClientViewState extends State<_AddClientView> {
 
       if (mounted) {
         context.read<ClientsBloc>().add(const ClientsFetchRequested());
+        final auth = context.read<AuthBloc>().state;
+        final needsApproval = auth is AuthAuthenticated && auth.profile.needsApproval;
         AppFeedback.success(
           context,
-          _isEdit ? 'Client updated.' : 'Client created successfully.',
+          _isEdit
+              ? 'Client updated.'
+              : needsApproval
+                  ? 'Submitted for admin approval.'
+                  : 'Client created successfully.',
         );
         context.go('/clients/${saved.id}');
       }
@@ -424,7 +436,8 @@ class _AddClientViewState extends State<_AddClientView> {
         ),
         title: Text(_isEdit ? 'Edit Client' : 'Add New Client'),
         actions: [
-          if (!_isEdit)
+          // Config options can only be changed by admins.
+          if (!_isEdit && _isAdmin)
             isCompact
                 ? IconButton(
                     onPressed: _openModelEditor,

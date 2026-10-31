@@ -17,6 +17,9 @@ import 'features/machines/data/repositories/machines_repository.dart';
 import 'features/dashboard/data/repositories/dashboard_repository.dart'; 
 import 'features/engineers/data/repositories/engineers_repository.dart'; 
 import 'features/config/data/repositories/config_repository.dart'; 
+import 'features/users/data/repositories/users_repository.dart';
+import 'features/approvals/data/repositories/approvals_repository.dart';
+import 'features/notifications/data/notifications_repository.dart';
 
 // BLoCs
 import 'features/auth/presentation/bloc/auth_bloc.dart'; 
@@ -25,6 +28,7 @@ import 'features/machines/presentation/bloc/machines_bloc.dart';
 import 'features/dashboard/presentation/bloc/dashboard_bloc.dart'; 
 import 'features/engineers/presentation/bloc/engineers_bloc.dart'; 
 import 'features/config/presentation/bloc/config_bloc.dart'; 
+import 'features/notifications/presentation/notifications_cubit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); //[cite: 6]
@@ -57,13 +61,16 @@ class EamApp extends StatefulWidget {
   State<EamApp> createState() => _EamAppState();
 }
 
-class _EamAppState extends State<EamApp> {
+class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
   late final AuthRepository      _authRepo      = AuthRepository(); //[cite: 6]
   late final ClientsRepository   _clientsRepo   = ClientsRepository(); //[cite: 6]
   late final MachinesRepository  _machinesRepo  = MachinesRepository(); //[cite: 6]
   late final DashboardRepository _dashRepo      = DashboardRepository(); //[cite: 6]
   late final EngineersRepository _engineersRepo = EngineersRepository(); //[cite: 6]
   late final ConfigRepository    _configRepo    = ConfigRepository(); //[cite: 6]
+  late final UsersRepository     _usersRepo     = UsersRepository();
+  late final ApprovalsRepository _approvalsRepo = ApprovalsRepository();
+  late final NotificationsRepository _notificationsRepo = NotificationsRepository();
 
   // 🌟 Removed inline cascade invocation to prevent race conditions during early navigation tree boots
   late final AuthBloc _authBloc = AuthBloc(authRepository: _authRepo); //[cite: 6]
@@ -73,12 +80,23 @@ class _EamAppState extends State<EamApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // 🌟 Safely kick off token validation sequence after initial layout evaluation context is established
     _authBloc.add(AuthStarted());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-validate the session whenever the app returns to the foreground,
+    // e.g. after it was terminated from another device.
+    if (state == AppLifecycleState.resumed) {
+      _authBloc.add(AuthSessionCheckRequested());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authBloc.close(); //[cite: 6]
     super.dispose(); //[cite: 6]
   }
@@ -93,10 +111,21 @@ class _EamAppState extends State<EamApp> {
         RepositoryProvider<DashboardRepository>.value(value: _dashRepo), //[cite: 6]
         RepositoryProvider<EngineersRepository>.value(value: _engineersRepo), //[cite: 6]
         RepositoryProvider<ConfigRepository>.value(value: _configRepo), //[cite: 6]
+        RepositoryProvider<UsersRepository>.value(value: _usersRepo),
+        RepositoryProvider<ApprovalsRepository>.value(value: _approvalsRepo),
+        RepositoryProvider<NotificationsRepository>.value(value: _notificationsRepo),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider<AuthBloc>.value(value: _authBloc), //[cite: 6]
+          BlocProvider<NotificationsCubit>(
+            lazy: false,
+            create: (_) => NotificationsCubit(
+              repository: _notificationsRepo,
+              approvals: _approvalsRepo,
+              authBloc: _authBloc,
+            ),
+          ),
           BlocProvider<DashboardBloc>(
             create: (_) => DashboardBloc(repository: _dashRepo), //[cite: 6]
           ),

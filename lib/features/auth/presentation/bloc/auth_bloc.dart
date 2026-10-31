@@ -33,26 +33,18 @@ class AuthLoginRequested extends AuthEvent {
   List<Object?> get props => [email, password, platform];
 }
 
-class AuthRegisterRequested extends AuthEvent {
-  final String email;
-  final String password;
-  final String role;
-  final String adminEmail;
-  final String adminPassword;
-
-  const AuthRegisterRequested({
-    required this.email,
-    required this.password,
-    required this.role,
-    required this.adminEmail,
-    required this.adminPassword,
-  });
-
-  @override
-  List<Object?> get props => [email, password, role, adminEmail, adminPassword];
-}
-
 class AuthLogoutRequested extends AuthEvent {}
+
+/// Re-checks with the server that the current session has not been revoked.
+class AuthSessionCheckRequested extends AuthEvent {}
+
+/// The signed-in user's profile changed (e.g. they edited their name).
+class AuthProfileUpdated extends AuthEvent {
+  final UserProfile profile;
+  const AuthProfileUpdated(this.profile);
+  @override
+  List<Object?> get props => [profile];
+}
 
 class _AuthStateChanged extends AuthEvent {
   final sb.AuthState authState;
@@ -81,12 +73,6 @@ class AuthAuthenticated extends AuthState {
 
 class AuthUnauthenticated extends AuthState {}
 
-class AuthRegisterSuccess extends AuthState {
-  const AuthRegisterSuccess();
-  @override
-  List<Object?> get props => [];
-}
-
 class AuthError extends AuthState {
   final String message;
   const AuthError(this.message);
@@ -102,17 +88,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         super(AuthInitial()) {
     on<AuthStarted>(_onStarted);
     on<AuthLoginRequested>(_onLoginRequested);
-    on<AuthRegisterRequested>(_onRegisterRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
+    on<AuthSessionCheckRequested>(_onSessionCheckRequested);
+    on<AuthProfileUpdated>((event, emit) {
+      if (state is AuthAuthenticated) emit(AuthAuthenticated(event.profile));
+    });
     on<_AuthStateChanged>(_onAuthStateChanged);
 
     _authSub = _repo.authStateChanges.listen(
       (state) => add(_AuthStateChanged(state)),
     );
+
+    // Sessions terminated from another device stay usable until the access
+    // token expires, so poll the auth server to log out promptly.
+    _sessionCheckTimer = Timer.periodic(
+      _sessionCheckInterval,
+      (_) => add(AuthSessionCheckRequested()),
+    );
   }
+
+  static const _sessionCheckInterval = Duration(minutes: 1);
 
   final AuthRepository _repo;
   late final StreamSubscription _authSub;
+  late final Timer _sessionCheckTimer;
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
@@ -123,8 +122,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         emit(AuthUnauthenticated());
       }
-    } catch (_) {
+    } catch (e) {
+      if (_repo.isSessionRevoked(e)) await _repo.signOutLocally();
       // Gracefully fall back to login on startup failure/offline launch
+      emit(AuthUnauthenticated());
+    }
+  }
+
+  Future<void> _onSessionCheckRequested(
+    AuthSessionCheckRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+    try {
+      // Validates the session and picks up role/name changes made by an admin.
+      final profile = await _repo.getProfile();
+      if (profile != null && profile != current.profile && state is AuthAuthenticated) {
+        emit(AuthAuthenticated(profile));
+      }
+    } catch (e) {
+      // Offline or server hiccup: keep the user logged in and retry later.
+      if (!_repo.isSessionRevoked(e)) return;
+      await _repo.signOutLocally();
       emit(AuthUnauthenticated());
     }
   }
@@ -154,27 +174,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onRegisterRequested(
-    AuthRegisterRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(AuthLoading());
-    try {
-      await _repo.registerWithAdminApproval(
-        email: event.email,
-        password: event.password,
-        role: event.role,
-        adminEmail: event.adminEmail,
-        adminPassword: event.adminPassword,
-      );
-      emit(const AuthRegisterSuccess());
-    } on sb.AuthException catch (e) {
-      emit(AuthError(ErrorFormatter.format(e)));
-    } catch (e) {
-      emit(AuthError(ErrorFormatter.format(e)));
-    }
-  }
-
   Future<void> _onLogoutRequested(
     AuthLogoutRequested event,
     Emitter<AuthState> emit,
@@ -193,7 +192,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     if (event.authState.event == sb.AuthChangeEvent.signedOut) {
       emit(AuthUnauthenticated());
-    } else if (event.authState.event == sb.AuthChangeEvent.signedIn) {
+    } else if (event.authState.event == sb.AuthChangeEvent.signedIn ||
+        (event.authState.event == sb.AuthChangeEvent.tokenRefreshed &&
+            state is AuthUnauthenticated)) {
+      // tokenRefreshed: a background refresh finished after startup had
+      // already given up on the session, so restore the logged-in state.
       final userId = event.authState.session?.user.id;
       if (userId == null) {
         emit(AuthUnauthenticated());
@@ -215,6 +218,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   @override
   Future<void> close() {
     _authSub.cancel();
+    _sessionCheckTimer.cancel();
     return super.close();
   }
 }

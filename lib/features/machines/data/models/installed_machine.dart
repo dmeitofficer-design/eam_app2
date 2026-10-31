@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'engineer.dart';
 import 'machine_part.dart';
+import '../../../approvals/data/models/approval_status.dart';
 
 enum MachineType {
   xRay('X-ray'),
@@ -33,6 +34,11 @@ class InstalledMachine extends Equatable {
   final String? invoiceUrl;
   final String? notes;
   final DateTime createdAt;
+  final DateTime? updatedAt;
+  final String? updatedByName;
+  final String? createdBy;
+  final ApprovalStatus approvalStatus;
+  final String? rejectionReason;
 
   // PC Configuration Features
   final String? pcCpu;
@@ -89,6 +95,11 @@ class InstalledMachine extends Equatable {
     this.invoiceUrl,
     this.notes,
     required this.createdAt,
+    this.updatedAt,
+    this.updatedByName,
+    this.createdBy,
+    this.approvalStatus = ApprovalStatus.approved,
+    this.rejectionReason,
     this.pcCpu,
     this.pcRam,
     this.pcStorage,
@@ -188,6 +199,13 @@ class InstalledMachine extends Equatable {
       invoiceUrl: json['invoice_url'] as String?,
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
+      updatedByName: json['updated_by_name'] as String?,
+      createdBy: json['created_by'] as String?,
+      approvalStatus: ApprovalStatus.fromString(json['approval_status'] as String?),
+      rejectionReason: json['rejection_reason'] as String?,
       
       pcCpu: json['pc_cpu'] as String?,
       pcRam: json['pc_ram'] as String?,
@@ -324,6 +342,11 @@ class InstalledMachine extends Equatable {
         invoiceUrl: invoiceUrl ?? this.invoiceUrl,
         notes: notes ?? this.notes,
         createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt,
+        updatedByName: updatedByName,
+        createdBy: createdBy,
+        approvalStatus: approvalStatus,
+        rejectionReason: rejectionReason,
         
         pcCpu: pcCpu ?? this.pcCpu,
         pcRam: pcRam ?? this.pcRam,
@@ -362,6 +385,7 @@ class InstalledMachine extends Equatable {
   List<Object?> get props => [
         id,
         hospitalId,
+        approvalStatus,
         brand,
         model,
         installationEngineerId,

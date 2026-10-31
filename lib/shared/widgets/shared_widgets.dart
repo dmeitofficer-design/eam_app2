@@ -10,3 +10,4 @@ export 'section_header.dart';
 export 'empty_state.dart';
 export 'confirm_dialog.dart';
 export 'role_guard.dart';
+export 'updated_by_label.dart';

@@ -12,6 +12,8 @@ class AppConstants {
   static const String tableProfiles         = 'profiles';
   static const String tableHospitalClients  = 'hospital_clients';
   static const String tableInstalledMachines = 'installed_machines';
+  /// Read path for machines: technical columns are blank for non-admins.
+  static const String viewInstalledMachines = 'installed_machines_view';
   static const String tableEngineers        = 'engineers';
 
   // Breakpoints
@@ -32,8 +34,4 @@ class AppStrings {
   static const String totalDivisions    = 'Divisions';
   static const String availableEngineers = 'Available Engineers';
 
-  // Roles
-  static const String roleSuperAdmin = 'super_admin';
-  static const String roleAdmin = 'admin';
-  static const String roleUser  = 'user';
 }

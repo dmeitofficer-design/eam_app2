@@ -6,6 +6,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../../config/data/repositories/config_repository.dart';
 import '../../../config/presentation/bloc/config_bloc.dart';
+import '../../../approvals/data/repositories/approvals_repository.dart';
+import '../../../approvals/presentation/delete_or_request.dart';
 
 class MachineConfigPage extends StatelessWidget {
   const MachineConfigPage({super.key});
@@ -118,49 +120,31 @@ class _ConfigSectionState extends State<_ConfigSection> {
   }
 
   Future<void> _deleteValue(String value) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface2,
-        title: const Text('Remove option?'),
-        content: Text('Delete "$value" from ${widget.title}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(0, 40),
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      try {
-        final repo = context.read<ConfigRepository>();
-        final items = await repo.getByType(widget.configType);
-        final match = items.where(
-          (e) => e.value.toLowerCase() == value.toLowerCase(),
-        );
-        if (match.isNotEmpty && mounted) {
-          context.read<ConfigBloc>().add(
-                ConfigOptionDeleted(match.first.id),
-              );
-        } else if (mounted) {
-          AppFeedback.error(context, 'Option not found in database.');
-        }
-      } catch (e) {
-        if (mounted) {
-          AppFeedback.error(context, 'Failed to delete option: $e');
-        }
+    try {
+      final repo = context.read<ConfigRepository>();
+      final items = await repo.getByType(widget.configType);
+      final match = items.where(
+        (e) => e.value.toLowerCase() == value.toLowerCase(),
+      );
+      if (!mounted) return;
+      if (match.isEmpty) {
+        AppFeedback.error(context, 'Option not found in database.');
+        return;
+      }
+      final id = match.first.id;
+      // Super admins delete; admins send the request for approval.
+      await deleteOrRequest(
+        context,
+        target: DeletionTarget.config,
+        id: id,
+        label: '"$value" (${widget.title})',
+        consequence: 'Remove "$value" from ${widget.title}?',
+        deleteNow: () async =>
+            context.read<ConfigBloc>().add(ConfigOptionDeleted(id)),
+      );
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.error(context, 'Failed to delete option: $e');
       }
     }
   }

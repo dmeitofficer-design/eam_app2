@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../shared/widgets/updated_by_label.dart';
+import '../../../approvals/data/models/approval_status.dart';
+import '../../../approvals/data/repositories/approvals_repository.dart';
+import '../../../approvals/presentation/approval_widgets.dart';
+import '../../../approvals/presentation/delete_or_request.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -59,46 +64,31 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       ),
     );
     if (result == true && mounted) {
-      context.read<MachinesBloc>().add(MachineFetchByIdRequested(widget.machineId));
+      _reload();
       AppFeedback.success(context, 'Machine updated.');
     }
   }
 
-  Future<void> _deleteMachine(InstalledMachine machine) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface1,
-        title: const Text('Delete machine?'),
-        content: Text('Delete "${machine.brand} ${machine.model}"? This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(0, 44),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+  Future<void> _deleteMachine(InstalledMachine machine, {required bool ownSubmission}) async {
+    final label = '${machine.brand} ${machine.model}';
+    final deleted = await deleteOrRequest(
+      context,
+      target: DeletionTarget.machine,
+      id: machine.id,
+      label: label,
+      link: '/clients/${widget.clientId}/machine/${machine.id}',
+      ownSubmission: ownSubmission,
+      consequence: 'This permanently deletes "$label" with its parts and engineer assignments.',
+      deleteNow: () => context.read<MachinesRepository>().deleteMachine(machine.id),
     );
-    if (confirmed == true && mounted) {
-      try {
-        await context.read<MachinesRepository>().deleteMachine(machine.id);
-        if (mounted) {
-          context.read<MachinesBloc>().add(MachinesFetchRequested(widget.clientId));
-          Navigator.of(context).pop();
-        }
-      } catch (e) {
-        if (mounted) AppFeedback.error(context, e.toString());
-      }
+    if (deleted && mounted) {
+      context.read<MachinesBloc>().add(MachinesFetchRequested(widget.clientId));
+      Navigator.of(context).pop();
     }
+  }
+
+  void _reload() {
+    context.read<MachinesBloc>().add(MachineFetchByIdRequested(widget.machineId));
   }
 
   Future<void> _requestInvoiceUrl(String path) async {
@@ -108,7 +98,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
-    final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
+    final profile = authState is AuthAuthenticated ? authState.profile : null;
+    final isAdmin = profile?.isAdmin ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.surface0,
@@ -139,6 +130,13 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
             );
           }
           if (state is MachineDetailLoaded) {
+            final machine = state.machine;
+            final isOwn = machine.createdBy != null && machine.createdBy == profile?.id;
+            final ownPending = isOwn && machine.approvalStatus == ApprovalStatus.pending;
+            final ownUnapproved = isOwn && machine.approvalStatus != ApprovalStatus.approved;
+            final canEdit = isAdmin || ownPending;
+            // Super admins delete, admins request deletion, submitters withdraw.
+            final canDelete = isAdmin || ownUnapproved;
             return Scaffold(
               backgroundColor: AppColors.surface0,
               appBar: AppBar(
@@ -146,22 +144,35 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                 title: Text('${state.machine.brand} ${state.machine.model}',
                     overflow: TextOverflow.ellipsis,),
                 actions: [
-                  if (isAdmin) ...[
+                  if (canEdit)
                     IconButton(
                       icon: const Icon(Icons.edit_rounded),
                       tooltip: 'Edit machine',
                       onPressed: () => _openEdit(state.machine),
                     ),
+                  if (canDelete)
                     IconButton(
                       icon: const Icon(Icons.delete_rounded),
                       tooltip: 'Delete machine',
                       color: AppColors.error,
-                      onPressed: () => _deleteMachine(state.machine),
+                      onPressed: () => _deleteMachine(state.machine, ownSubmission: ownUnapproved),
                     ),
-                  ],
                 ],
               ),
               body: _MachineDetailBody(
+                header: ApprovalBanner(
+                  status: machine.approvalStatus,
+                  rejectionReason: machine.rejectionReason,
+                  submittedBy: isOwn ? null : machine.updatedByName,
+                  canReview: isAdmin,
+                  review: ({required bool approve, String? reason}) =>
+                      context.read<ApprovalsRepository>().reviewMachine(
+                            machine.id,
+                            approve: approve,
+                            reason: reason,
+                          ),
+                  onReviewed: _reload,
+                ),
                 machine: state.machine,
                 signedInvoiceUrl: state.signedInvoiceUrl,
                 isAdmin: isAdmin,
@@ -195,6 +206,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
 
 class _MachineDetailBody extends StatelessWidget {
   const _MachineDetailBody({
+    this.header,
     required this.machine,
     required this.isAdmin,
     required this.onRequestInvoiceUrl,
@@ -202,6 +214,7 @@ class _MachineDetailBody extends StatelessWidget {
     this.signedInvoiceUrl,
   });
 
+  final Widget? header;
   final InstalledMachine machine;
   final bool isAdmin;
   final String? signedInvoiceUrl;
@@ -222,6 +235,7 @@ class _MachineDetailBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (header != null) header!,
               // ── Identity (Includes PC and Conditional Specs) ───────
               _MachineIdentityCard(machine: machine),
               const SizedBox(height: AppSpacing.md),
@@ -252,6 +266,11 @@ class _MachineDetailBody extends StatelessWidget {
                   onView: onViewInvoice,
                 ),
 
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerRight,
+                child: UpdatedByLabel(name: machine.updatedByName, at: machine.updatedAt),
+              ),
               const SizedBox(height: AppSpacing.xl),
             ],
           ),
