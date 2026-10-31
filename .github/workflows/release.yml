@@ -13,13 +13,15 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    name: Build, publish and announce the release
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
-
+  version:
+    name: Read version from the tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      name: ${{ steps.version.outputs.name }}
+      build: ${{ steps.version.outputs.build }}
+      mandatory: ${{ steps.version.outputs.mandatory }}
+      notes: ${{ steps.version.outputs.notes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,6 +55,16 @@ jobs:
             echo "$NOTES"
             echo "RELEASE_NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
+
+  # Built on Linux: on Windows runners the Kotlin compiler fails because the
+  # project (D:) and the pub cache (C:) are on different drives.
+  android:
+    name: Build Android APK
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Create .env from secrets
         env:
@@ -100,29 +112,83 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Android APK
+      - name: Build APK
         run: |
           flutter build apk --release \
-            --build-name=${{ steps.version.outputs.name }} \
-            --build-number=${{ steps.version.outputs.build }}
+            --build-name=${{ needs.version.outputs.name }} \
+            --build-number=${{ needs.version.outputs.build }}
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/DME-CM.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/DME-CM.apk
+          if-no-files-found: error
+
+  windows:
+    name: Build Windows app
+    needs: version
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create .env from secrets
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [[ -z "$ENV_FILE" ]]; then
+            echo "::error::Add the ENV_FILE repository secret (contents of your .env file)."
+            exit 1
+          fi
+          printf '%s\n' "$ENV_FILE" > .env
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
 
       - name: Build Windows app
         run: |
           flutter build windows --release \
-            --build-name=${{ steps.version.outputs.name }} \
-            --build-number=${{ steps.version.outputs.build }}
+            --build-name=${{ needs.version.outputs.name }} \
+            --build-number=${{ needs.version.outputs.build }}
 
-      - name: Package Windows app as a zip
+      - name: Package as a zip
         shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/DME-CM-windows.zip
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/DME-CM-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/DME-CM-windows.zip
+          if-no-files-found: error
+
+  publish:
+    name: Publish and announce the release
+    needs: [version, android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: DME CM ${{ steps.version.outputs.name }} (build ${{ steps.version.outputs.build }})
-          body: ${{ steps.version.outputs.notes }}
+          name: DME CM ${{ needs.version.outputs.name }} (build ${{ needs.version.outputs.build }})
+          body: ${{ needs.version.outputs.notes }}
           files: |
             dist/DME-CM.apk
             dist/DME-CM-windows.zip
@@ -132,11 +198,11 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          TAG: ${{ steps.version.outputs.tag }}
-          NAME: ${{ steps.version.outputs.name }}
-          BUILD: ${{ steps.version.outputs.build }}
-          MANDATORY: ${{ steps.version.outputs.mandatory }}
-          NOTES: ${{ steps.version.outputs.notes }}
+          TAG: ${{ needs.version.outputs.tag }}
+          NAME: ${{ needs.version.outputs.name }}
+          BUILD: ${{ needs.version.outputs.build }}
+          MANDATORY: ${{ needs.version.outputs.mandatory }}
+          NOTES: ${{ needs.version.outputs.notes }}
         run: |
           if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_SERVICE_KEY" ]]; then
             echo "::error::Add the SUPABASE_URL and SUPABASE_SERVICE_KEY secrets."
