@@ -24,13 +24,14 @@ enum ClientSort {
   nameAsc('Name A–Z', Icons.sort_by_alpha_rounded),
   nameDesc('Name Z–A', Icons.sort_by_alpha_rounded),
   mostInstalls('Most installations', Icons.trending_up_rounded),
-  fewestInstalls('Fewest installations', Icons.trending_down_rounded);
+  fewestInstalls('Fewest installations', Icons.trending_down_rounded),
+  warrantyExpired('Warranty expired', Icons.gpp_bad_rounded);
 
   const ClientSort(this.label, this.icon);
   final String label;
   final IconData icon;
 
-  bool get needsCounts => this == mostInstalls || this == fewestInstalls;
+  bool get needsCounts => this == mostInstalls || this == fewestInstalls || this == warrantyExpired;
 }
 
 class ClientsScreen extends StatefulWidget {
@@ -45,7 +46,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
   /// Kept across tab switches for the rest of the session. The server
   /// returns clients by name, so A–Z is the default.
   static ClientSort _sort = ClientSort.nameAsc;
-  Map<String, int>? _machineCounts;
+  Map<String, ({int total, int expired})>? _machineCounts;
   bool _loadingCounts = false;
 
   Future<void> _setSort(ClientSort sort) async {
@@ -56,7 +57,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
   Future<void> _loadCounts() async {
     setState(() => _loadingCounts = true);
     try {
-      final counts = await context.read<ClientsRepository>().getMachineCounts();
+      final counts = await context.read<ClientsRepository>().getMachineStats();
       if (mounted) setState(() => _machineCounts = counts);
     } catch (e) {
       if (mounted) _showErrorSnackBar('Could not load installation counts.');
@@ -66,10 +67,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
   }
 
   List<HospitalClient> _sorted(List<HospitalClient> clients) {
-    final counts = _machineCounts ?? const <String, int>{};
+    final counts = _machineCounts ?? const <String, ({int total, int expired})>{};
     int byName(HospitalClient a, HospitalClient b) =>
         a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    int installs(HospitalClient c) => counts[c.id] ?? 0;
+    int installs(HospitalClient c) => counts[c.id]?.total ?? 0;
+    int expired(HospitalClient c) => counts[c.id]?.expired ?? 0;
 
     final list = [...clients];
     switch (_sort) {
@@ -89,6 +91,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
       case ClientSort.fewestInstalls:
         list.sort((a, b) {
           final d = installs(a).compareTo(installs(b));
+          return d != 0 ? d : byName(a, b);
+        });
+      case ClientSort.warrantyExpired:
+        // Most machines out of warranty first.
+        list.sort((a, b) {
+          final d = expired(b).compareTo(expired(a));
           return d != 0 ? d : byName(a, b);
         });
     }
@@ -217,6 +225,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(0, 44),
                             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                            shape: const StadiumBorder(),
                           ),
                         ),
                     ],
@@ -366,7 +375,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (_, i) => _ClientCard(
                         client: sorted[i],
-                        installations: _sort.needsCounts ? (_machineCounts?[sorted[i].id] ?? 0) : null,
+                        stat: !_sort.needsCounts
+                            ? null
+                            : _sort == ClientSort.warrantyExpired
+                                ? (count: _machineCounts?[sorted[i].id]?.expired ?? 0, expired: true)
+                                : (count: _machineCounts?[sorted[i].id]?.total ?? 0, expired: false),
                         onTap: () => context.push('/clients/${sorted[i].id}'),
                       ),
                     ),
@@ -568,12 +581,12 @@ class _DropdownChip<T> extends StatelessWidget {
 // ── Client card ──────────────────────────────────────────────
 
 class _ClientCard extends StatelessWidget {
-  const _ClientCard({required this.client, required this.onTap, this.installations});
+  const _ClientCard({required this.client, required this.onTap, this.stat});
   final HospitalClient client;
   final VoidCallback onTap;
 
-  /// Shown while sorting by installations.
-  final int? installations;
+  /// Machine count (or expired-warranty count) shown while sorting by it.
+  final ({int count, bool expired})? stat;
 
   IconData _facilityIcon(FacilityType type) {
     switch (type) {
@@ -676,13 +689,18 @@ class _ClientCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              if (installations != null) ...[
+              if (stat != null) ...[
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('$installations', style: theme.textTheme.titleMedium),
                     Text(
-                      installations == 1 ? 'machine' : 'machines',
+                      '${stat!.count}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: stat!.expired && stat!.count > 0 ? AppColors.error : null,
+                      ),
+                    ),
+                    Text(
+                      stat!.expired ? 'expired' : (stat!.count == 1 ? 'machine' : 'machines'),
                       style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
                     ),
                   ],
