@@ -13,8 +13,26 @@ import '../../../config/presentation/bloc/config_bloc.dart';
 import '../../../approvals/data/models/approval_status.dart';
 import '../../../approvals/presentation/approval_widgets.dart';
 import '../../data/models/hospital_client.dart';
+import '../../data/repositories/clients_repository.dart';
 import '../bloc/clients_bloc.dart';
 import 'add_client_page.dart';
+
+/// Client list orders offered by the sort menu.
+enum ClientSort {
+  newest('Last added', Icons.schedule_rounded),
+  oldest('First added', Icons.history_rounded),
+  nameAsc('Name A–Z', Icons.sort_by_alpha_rounded),
+  nameDesc('Name Z–A', Icons.sort_by_alpha_rounded),
+  mostInstalls('Most installations', Icons.trending_up_rounded),
+  fewestInstalls('Fewest installations', Icons.trending_down_rounded),
+  warrantyExpired('Warranty expired', Icons.gpp_bad_rounded);
+
+  const ClientSort(this.label, this.icon);
+  final String label;
+  final IconData icon;
+
+  bool get needsCounts => this == mostInstalls || this == fewestInstalls || this == warrantyExpired;
+}
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});
@@ -24,6 +42,66 @@ class ClientsScreen extends StatefulWidget {
 
 class _ClientsScreenState extends State<ClientsScreen> {
   final _searchCtrl = TextEditingController();
+
+  /// Kept across tab switches for the rest of the session. The server
+  /// returns clients by name, so A–Z is the default.
+  static ClientSort _sort = ClientSort.nameAsc;
+  Map<String, ({int total, int expired})>? _machineCounts;
+  bool _loadingCounts = false;
+
+  Future<void> _setSort(ClientSort sort) async {
+    setState(() => _sort = sort);
+    if (sort.needsCounts && _machineCounts == null) await _loadCounts();
+  }
+
+  Future<void> _loadCounts() async {
+    setState(() => _loadingCounts = true);
+    try {
+      final counts = await context.read<ClientsRepository>().getMachineStats();
+      if (mounted) setState(() => _machineCounts = counts);
+    } catch (e) {
+      if (mounted) _showErrorSnackBar('Could not load installation counts.');
+    } finally {
+      if (mounted) setState(() => _loadingCounts = false);
+    }
+  }
+
+  List<HospitalClient> _sorted(List<HospitalClient> clients) {
+    final counts = _machineCounts ?? const <String, ({int total, int expired})>{};
+    int byName(HospitalClient a, HospitalClient b) =>
+        a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    int installs(HospitalClient c) => counts[c.id]?.total ?? 0;
+    int expired(HospitalClient c) => counts[c.id]?.expired ?? 0;
+
+    final list = [...clients];
+    switch (_sort) {
+      case ClientSort.newest:
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      case ClientSort.oldest:
+        list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      case ClientSort.nameAsc:
+        list.sort(byName);
+      case ClientSort.nameDesc:
+        list.sort((a, b) => byName(b, a));
+      case ClientSort.mostInstalls:
+        list.sort((a, b) {
+          final d = installs(b).compareTo(installs(a));
+          return d != 0 ? d : byName(a, b);
+        });
+      case ClientSort.fewestInstalls:
+        list.sort((a, b) {
+          final d = installs(a).compareTo(installs(b));
+          return d != 0 ? d : byName(a, b);
+        });
+      case ClientSort.warrantyExpired:
+        // Most machines out of warranty first.
+        list.sort((a, b) {
+          final d = expired(b).compareTo(expired(a));
+          return d != 0 ? d : byName(a, b);
+        });
+    }
+    return list;
+  }
 
   @override
   void initState() {
@@ -91,17 +169,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface0,
-      floatingActionButton: canAdd
-          ? FloatingActionButton.extended(
-              onPressed: _openAddClient,
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Client'),
-              elevation: 0,
-              shape: const StadiumBorder(), 
-            )
-          : null,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,30 +184,48 @@ class _ClientsScreenState extends State<ClientsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Title · sort ··· Add Client
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Clients', style: theme.textTheme.headlineLarge),
-                          BlocBuilder<ClientsBloc, ClientsState>(
-                            buildWhen: (p, c) =>
-                                p.clients.length != c.clients.length,
-                            builder: (context, state) => Text(
-                              '${state.clients.length} facilities',
-                              style: theme.textTheme.bodyMedium,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('Clients', style: theme.textTheme.headlineLarge),
+                                const SizedBox(width: AppSpacing.xxs),
+                                _SortButton(
+                                  current: _sort,
+                                  loading: _loadingCounts,
+                                  onSelected: _setSort,
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                            BlocBuilder<ClientsBloc, ClientsState>(
+                              buildWhen: (p, c) =>
+                                  p.clients.length != c.clients.length,
+                              builder: (context, state) => Text(
+                                '${state.clients.length} facilities · ${_sort.label}',
+                                style: theme.textTheme.bodyMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      if (canAdd && isDesktop)
+                      const SizedBox(width: AppSpacing.sm),
+                      if (canAdd)
                         ElevatedButton.icon(
                           onPressed: _openAddClient,
                           icon: const Icon(Icons.add_rounded, size: 18),
                           label: const Text('Add Client'),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(0, 44),
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                            shape: const StadiumBorder(),
                           ),
                         ),
                     ],
@@ -215,6 +300,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                   Future<void> handleRefresh() async {
                     final bloc = context.read<ClientsBloc>();
                     bloc.add(const ClientsFetchRequested(forceRefresh: true));
+                    if (_sort.needsCounts) _loadCounts();
                     await bloc.stream.firstWhere((s) => !s.isLoading);
                   }
 
@@ -271,6 +357,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                     );
                   }
 
+                  final sorted = _sorted(state.clients);
                   return RefreshIndicator(
                     color: AppColors.accent,
                     backgroundColor: AppColors.surface1,
@@ -281,15 +368,19 @@ class _ClientsScreenState extends State<ClientsScreen> {
                         isDesktop ? AppSpacing.xl : AppSpacing.md,
                         AppSpacing.md,
                         isDesktop ? AppSpacing.xl : AppSpacing.md,
-                        canAdd ? 96 : AppSpacing.md,
+                        AppSpacing.md,
                       ),
-                      itemCount: state.clients.length,
+                      itemCount: sorted.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (_, i) => _ClientCard(
-                        client: state.clients[i],
-                        onTap: () =>
-                            context.push('/clients/${state.clients[i].id}'),
+                        client: sorted[i],
+                        stat: !_sort.needsCounts
+                            ? null
+                            : _sort == ClientSort.warrantyExpired
+                                ? (count: _machineCounts?[sorted[i].id]?.expired ?? 0, expired: true)
+                                : (count: _machineCounts?[sorted[i].id]?.total ?? 0, expired: false),
+                        onTap: () => context.push('/clients/${sorted[i].id}'),
                       ),
                     ),
                   );
@@ -490,9 +581,12 @@ class _DropdownChip<T> extends StatelessWidget {
 // ── Client card ──────────────────────────────────────────────
 
 class _ClientCard extends StatelessWidget {
-  const _ClientCard({required this.client, required this.onTap});
+  const _ClientCard({required this.client, required this.onTap, this.stat});
   final HospitalClient client;
   final VoidCallback onTap;
+
+  /// Machine count (or expired-warranty count) shown while sorting by it.
+  final ({int count, bool expired})? stat;
 
   IconData _facilityIcon(FacilityType type) {
     switch (type) {
@@ -595,12 +689,81 @@ class _ClientCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
+              if (stat != null) ...[
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${stat!.count}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: stat!.expired && stat!.count > 0 ? AppColors.error : null,
+                      ),
+                    ),
+                    Text(
+                      stat!.expired ? 'expired' : (stat!.count == 1 ? 'machine' : 'machines'),
+                      style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: AppSpacing.xs),
+              ],
               Icon(Icons.chevron_right_rounded,
                   color: AppColors.textTertiary,),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Sort icon next to the title; the menu marks the current order.
+class _SortButton extends StatelessWidget {
+  const _SortButton({required this.current, required this.loading, required this.onSelected});
+  final ClientSort current;
+  final bool loading;
+  final ValueChanged<ClientSort> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDefault = current == ClientSort.nameAsc;
+    return PopupMenuButton<ClientSort>(
+      tooltip: 'Sort clients',
+      initialValue: current,
+      onSelected: onSelected,
+      position: PopupMenuPosition.under,
+      icon: loading
+          ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+          : Badge(
+              // A dot when the list isn't in the default order.
+              isLabelVisible: !isDefault,
+              smallSize: 7,
+              backgroundColor: AppColors.accent,
+              child: Icon(Icons.sort_rounded, color: AppColors.textSecondary),
+            ),
+      itemBuilder: (_) => [
+        PopupMenuItem<ClientSort>(
+          enabled: false,
+          height: 32,
+          child: Text(
+            'SORT BY',
+            style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.2, color: AppColors.textTertiary),
+          ),
+        ),
+        for (final s in ClientSort.values)
+          PopupMenuItem<ClientSort>(
+            value: s,
+            child: Row(
+              children: [
+                Icon(s.icon, size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: Text(s.label)),
+                if (s == current) const Icon(Icons.check_rounded, size: 18, color: AppColors.accent),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

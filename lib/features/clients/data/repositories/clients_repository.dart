@@ -91,6 +91,39 @@ class ClientsRepository {
     return HospitalClient.fromJson(data);
   }
 
+  /// Installed machines per client (total and with expired warranty),
+  /// counting only machines the caller can see (approved ones, plus their
+  /// own submissions / everything for admins).
+  Future<Map<String, ({int total, int expired})>> getMachineStats() async {
+    const page = 1000; // PostgREST's default row limit
+    final stats = <String, ({int total, int expired})>{};
+    final now = DateTime.now();
+    for (var from = 0;; from += page) {
+      final rows = await _client
+          .from(AppConstants.viewInstalledMachines)
+          .select('hospital_id, installation_date, warranty_period')
+          .range(from, from + page - 1);
+      for (final row in rows as List<dynamic>) {
+        final m = row as Map<String, dynamic>;
+        final id = m['hospital_id'] as String;
+        final installed = DateTime.parse(m['installation_date'] as String);
+        final months = m['warranty_period'] as int;
+        // Same rule as InstalledMachine.warrantyExpiryDate.
+        final expiry = DateTime(
+          installed.year + (installed.month + months - 1) ~/ 12,
+          (installed.month + months - 1) % 12 + 1,
+          installed.day,
+        );
+        final prev = stats[id] ?? (total: 0, expired: 0);
+        stats[id] = (
+          total: prev.total + 1,
+          expired: prev.expired + (now.isBefore(expiry) ? 0 : 1),
+        );
+      }
+      if (rows.length < page) return stats;
+    }
+  }
+
   Future<void> deleteClient(String id) async {
     await _client
         .from(AppConstants.tableHospitalClients)
