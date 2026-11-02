@@ -9,11 +9,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/theme/design_type.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../approvals/data/repositories/approvals_repository.dart';
 import '../../../approvals/presentation/delete_or_request.dart';
@@ -23,43 +22,6 @@ import './engineer_form_sheet.dart';
 
 // Point to the comprehensive machines feature model path
 import '../../../machines/data/models/engineer.dart';
-
-// ── Design tokens (from the SVG) ─────────────────────────────────────────────
-
-class _Ink {
-  _Ink._();
-
-  /// #231F20 strokes and text; light text in dark mode so it stays readable.
-  static Color get primary =>
-      ThemeController.isDarkMode ? AppColors.textPrimary : const Color(0xFF231F20);
-  static const muted = Color(0xFFAAAAAA); // designation, phone, search hint
-  static const searchIcon = Color(0xFFA9A9A9);
-  static const available = Color(0xFF39B54A); // status dot
-  static const unavailable = Color(0xFF808285); // avatar + dot when unavailable
-  static const unavailableName = Color(0xFF939598);
-  static const delete = Color(0xFFFF2533);
-}
-
-class _Type {
-  _Type._();
-
-  /// Oddlini Bold is not on Google Fonts. Until the font file is bundled as
-  /// the 'Oddlini' family (see pubspec.yaml), Elms Sans Bold stands in.
-  static TextStyle oddlini(double size, Color color) => TextStyle(
-        fontFamily: 'Oddlini',
-        fontFamilyFallback: [GoogleFonts.elmsSans(fontWeight: FontWeight.w700).fontFamily!],
-        fontWeight: FontWeight.w700,
-        fontSize: size,
-        color: color,
-        height: 1.15,
-      );
-
-  static TextStyle elms(double size, Color color, FontWeight weight) =>
-      GoogleFonts.elmsSans(fontSize: size, color: color, fontWeight: weight, height: 1.2);
-
-  static TextStyle google(double size, Color color) =>
-      GoogleFonts.googleSans(fontSize: size, color: color, height: 1.2);
-}
 
 class EngineersScreen extends StatefulWidget {
   const EngineersScreen({super.key});
@@ -128,15 +90,15 @@ class _EngineersScreenState extends State<EngineersScreen> {
                     _TapIcon(
                       tooltip: 'Back',
                       onTap: _goBack,
-                      child: Icon(Icons.arrow_back_rounded, size: 22, color: _Ink.primary),
+                      child: Icon(Icons.arrow_back_rounded, size: 22, color: DesignInk.primary),
                     ),
                     const SizedBox(width: 8),
-                    Icon(Icons.engineering_outlined, size: 22, color: _Ink.primary),
+                    Icon(Icons.engineering_outlined, size: 22, color: DesignInk.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Engineers Directory',
-                        style: _Type.oddlini(17, _Ink.primary), // 12 → 17
+                        style: DesignType.oddlini(17, DesignInk.primary), // 12 → 17
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -149,8 +111,8 @@ class _EngineersScreenState extends State<EngineersScreen> {
                           width: 36, // 25.1 → 36
                           height: 36,
                           child: CustomPaint(
-                            painter: _BracketFramePainter(color: _Ink.primary),
-                            child: Center(child: _ThickPlus(size: 24, color: _Ink.primary)),
+                            painter: _BracketFramePainter(color: DesignInk.primary),
+                            child: Center(child: _ThickPlus(size: 24, color: DesignInk.primary)),
                           ),
                         ),
                       ),
@@ -226,7 +188,7 @@ class _EngineersScreenState extends State<EngineersScreen> {
                     final showCreate = canManage && !isDesktop;
 
                     return RefreshIndicator(
-                      color: _Ink.available,
+                      color: DesignInk.available,
                       backgroundColor: AppColors.surface1,
                       onRefresh: () async {
                         context.read<EngineersBloc>().add(EngineersFetchAll());
@@ -290,20 +252,20 @@ class _SearchPill extends StatelessWidget {
     return Container(
       height: 47, // 33.33 → 47
       decoration: BoxDecoration(
-        border: Border.all(color: _Ink.primary),
+        border: Border.all(color: DesignInk.primary),
         borderRadius: BorderRadius.circular(23.5),
       ),
       padding: const EdgeInsets.only(left: 12, right: 6),
       child: Row(
         children: [
-          const Icon(Icons.person_search_rounded, size: 32, color: _Ink.searchIcon), // 23.6 → 33
+          const Icon(Icons.person_search_rounded, size: 32, color: DesignInk.searchIcon), // 23.6 → 33
           const SizedBox(width: 6),
           Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
-              style: _Type.elms(17, _Ink.primary, FontWeight.w400),
-              cursorColor: _Ink.primary,
+              style: DesignType.elms(17, DesignInk.primary, FontWeight.w400),
+              cursorColor: DesignInk.primary,
               decoration: InputDecoration(
                 isCollapsed: true,
                 filled: false,
@@ -311,14 +273,14 @@ class _SearchPill extends StatelessWidget {
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 hintText: 'Search by name or contact',
-                hintStyle: _Type.elms(17, _Ink.muted, FontWeight.w300), // 12 → 17
+                hintStyle: DesignType.elms(17, DesignInk.muted, FontWeight.w300), // 12 → 17
               ),
             ),
           ),
           if (hasText)
             IconButton(
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.close_rounded, size: 20, color: _Ink.muted),
+              icon: const Icon(Icons.close_rounded, size: 20, color: DesignInk.muted),
               onPressed: onClear,
             ),
         ],
@@ -352,9 +314,9 @@ class _EngineerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final available = engineer.isAvailable;
-    final ink = _Ink.primary;
-    final avatarColor = available ? ink : _Ink.unavailable;
-    final nameColor = available ? ink : _Ink.unavailableName;
+    final ink = DesignInk.primary;
+    final avatarColor = available ? ink : DesignInk.unavailable;
+    final nameColor = available ? ink : DesignInk.unavailableName;
     final hasDesignation = engineer.designation != null && engineer.designation!.isNotEmpty;
 
     return Opacity(
@@ -386,7 +348,7 @@ class _EngineerCard extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Text(
                       engineer.name.isNotEmpty ? engineer.name[0].toUpperCase() : '?',
-                      style: _Type.oddlini(22, avatarColor), // 15.9 → 22
+                      style: DesignType.oddlini(22, avatarColor), // 15.9 → 22
                     ),
                   ),
                   Positioned(
@@ -397,7 +359,7 @@ class _EngineerCard extends StatelessWidget {
                       height: 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: available ? _Ink.available : _Ink.unavailable,
+                        color: available ? DesignInk.available : DesignInk.unavailable,
                       ),
                     ),
                   ),
@@ -418,7 +380,7 @@ class _EngineerCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           engineer.name,
-                          style: _Type.oddlini(17, nameColor), // 12 → 17
+                          style: DesignType.oddlini(17, nameColor), // 12 → 17
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -430,19 +392,19 @@ class _EngineerCard extends StatelessWidget {
                   if (hasDesignation)
                     Text(
                       engineer.designation!,
-                      style: _Type.elms(12.7, _Ink.muted, FontWeight.w300), // 9 → 12.7
+                      style: DesignType.elms(12.7, DesignInk.muted, FontWeight.w300), // 9 → 12.7
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      const Icon(Icons.phone_iphone_rounded, size: 12, color: _Ink.muted),
+                      const Icon(Icons.phone_iphone_rounded, size: 12, color: DesignInk.muted),
                       const SizedBox(width: 3),
                       Flexible(
                         child: Text(
                           engineer.phone?.isNotEmpty == true ? engineer.phone! : 'No contact listed',
-                          style: _Type.google(13.3, _Ink.muted), // 9.42 → 13.3
+                          style: DesignType.google(13.3, DesignInk.muted), // 9.42 → 13.3
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -481,7 +443,7 @@ class _EngineerCard extends StatelessWidget {
                       child: _TapIcon(
                         tooltip: 'Delete Profile',
                         onTap: () => _delete(context),
-                        child: const Icon(Icons.delete_outline_rounded, size: 17, color: _Ink.delete),
+                        child: const Icon(Icons.delete_outline_rounded, size: 17, color: DesignInk.delete),
                       ),
                     ),
                   ],
@@ -502,7 +464,7 @@ class _StatusLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ink = _Ink.primary;
+    final ink = DesignInk.primary;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -514,7 +476,7 @@ class _StatusLabel extends StatelessWidget {
         const SizedBox(width: 3),
         Text(
           available ? 'available' : 'Unavailable',
-          style: _Type.google(available ? 10 : 8.5, ink), // 7 → 10, 6 → 8.5
+          style: DesignType.google(available ? 10 : 8.5, ink), // 7 → 10, 6 → 8.5
         ),
       ],
     );
@@ -529,7 +491,7 @@ class _CreateNewButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ink = _Ink.primary;
+    final ink = DesignInk.primary;
     return Material(
       color: AppColors.surface0,
       shape: StadiumBorder(side: BorderSide(color: ink, width: 1)), // 0.75 → 1
@@ -542,7 +504,7 @@ class _CreateNewButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(width: 16), // design width 91.26 → ~129 with the real font
-              Text('Create New', style: _Type.elms(12.7, ink, FontWeight.w600)), // 9 → 12.7
+              Text('Create New', style: DesignType.elms(12.7, ink, FontWeight.w600)), // 9 → 12.7
               const SizedBox(width: 6),
               SizedBox(
                 width: 36,
@@ -703,11 +665,11 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.engineering_outlined, size: 56, color: _Ink.muted),
+          const Icon(Icons.engineering_outlined, size: 56, color: DesignInk.muted),
           const SizedBox(height: AppSpacing.md),
           Text(
             searching ? 'No engineers match your search.' : 'No engineers registered yet.',
-            style: _Type.elms(14, _Ink.muted, FontWeight.w300),
+            style: DesignType.elms(14, DesignInk.muted, FontWeight.w300),
           ),
           if (!searching && canManage) ...[
             const SizedBox(height: AppSpacing.lg),
@@ -766,7 +728,7 @@ class _ErrorCard extends StatelessWidget {
         message.toLowerCase().contains('connection') ||
         message.toLowerCase().contains('timed out') ||
         message.toLowerCase().contains('supabase');
-    final ink = _Ink.primary;
+    final ink = DesignInk.primary;
 
     return Center(
       child: Padding(
@@ -782,18 +744,18 @@ class _ErrorCard extends StatelessWidget {
             children: [
               Icon(
                 isNetworkIssue ? Icons.wifi_off_rounded : Icons.cloud_off_rounded,
-                color: isNetworkIssue ? _Ink.muted : _Ink.delete,
+                color: isNetworkIssue ? DesignInk.muted : DesignInk.delete,
                 size: 40,
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 isNetworkIssue ? 'Connection Error' : 'Unable to Load Data',
-                style: _Type.oddlini(17, ink),
+                style: DesignType.oddlini(17, ink),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 message,
-                style: _Type.elms(13, _Ink.muted, FontWeight.w300),
+                style: DesignType.elms(13, DesignInk.muted, FontWeight.w300),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -805,7 +767,7 @@ class _ErrorCard extends StatelessWidget {
                 ),
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: Text('Retry', style: _Type.elms(13, ink, FontWeight.w600)),
+                label: Text('Retry', style: DesignType.elms(13, ink, FontWeight.w600)),
               ),
             ],
           ),

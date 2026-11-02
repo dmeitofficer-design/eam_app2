@@ -1,4 +1,6 @@
 // lib/features/dashboard/presentation/screens/dashboard_screen.dart
+import 'dart:math' as math;
+
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,11 +11,12 @@ import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/update_dialog.dart';
 import '../../../../core/services/update_service.dart';
+import '../../../../core/theme/design_type.dart';
+import '../../../../shared/widgets/role_avatar.dart';
 import '../../../auth/data/models/user_profile.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../../data/models/dashboard_analytics.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../config/presentation/widgets/developer_footer.dart';
 import '../../../notifications/presentation/notifications_screen.dart';
 
@@ -243,7 +246,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final profile = authState is AuthAuthenticated ? authState.profile : null;
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= AppConstants.tabletBreakpoint;
-    final isDark = ThemeController.isDarkMode;
 
     Future<void> handleRefresh() async {
       final bloc = context.read<DashboardBloc>();
@@ -270,54 +272,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Header, from the dashboard SVG (design units × 1.41).
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Dashboard', 
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: theme.colorScheme.onSurface,
-                              ),
+                              'Dashboard',
+                              style: DesignType.oddlini(22, DesignInk.primary), // ~15.7 → 22
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: AppSpacing.xxs),
+                            const SizedBox(height: 4),
                             Text(
-                              'Asset overview at a glance.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                              ),
-                              maxLines: 2,
+                              'Asset Overview at a glance',
+                              style: DesignType.elms(12.7, DesignInk.subtitle, FontWeight.w300), // 9 → 12.7
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                            ),
-                            tooltip: 'Toggle Theme Mode',
-                            onPressed: () => _toggleTheme(context),
-                          ),
-                          if (!isDesktop) const NotificationsBell(),
-                          if (profile != null && !isDesktop) ...[
-                            const SizedBox(width: AppSpacing.xs),
-                            GestureDetector(
-                              onTap: () => _showProfilePopup(context, profile),
-                              child: _RoleBadge(isAdmin: profile.isAdmin, label: profile.role.label.toUpperCase()),
-                            ),
-                          ],
-                        ],
+                      const SizedBox(width: AppSpacing.sm),
+                      _HeaderPill(
+                        onToggleTheme: () => _toggleTheme(context),
+                        profile: profile,
+                        onAvatarTap: profile == null
+                            ? null
+                            : () => isDesktop
+                                ? context.go('/profile')
+                                : _showProfilePopup(context, profile),
                       ),
                     ],
                   ),
@@ -588,48 +574,84 @@ String _accessDescription(AppRole? role) => switch (role) {
       _ => 'Viewer — clients, machines and warranty, read only.',
     };
 
-class _RoleBadge extends StatelessWidget {
-  const _RoleBadge({required this.isAdmin, required this.label});
-  final bool isAdmin;
-  final String label;
+/// Theme toggle, notifications and the role avatar in an outlined pill
+/// (design: 106.5 × 32.93 → 150 × 46, stroke #58595B).
+class _HeaderPill extends StatelessWidget {
+  const _HeaderPill({
+    required this.onToggleTheme,
+    required this.profile,
+    required this.onAvatarTap,
+  });
+
+  final VoidCallback onToggleTheme;
+  final UserProfile? profile;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final ink = DesignInk.primary;
     final isDark = ThemeController.isDarkMode;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
+      height: 46,
+      padding: const EdgeInsets.only(left: 6, right: 4),
       decoration: BoxDecoration(
-        color: isAdmin ? AppColors.accentDim : (isDark ? AppColors.surface2 : AppColors.lightSurface2),
-        borderRadius: AppRadius.chip,
+        borderRadius: BorderRadius.circular(23),
         border: Border.all(
-          color: isAdmin ? AppColors.accent : (isDark ? AppColors.surface3 : AppColors.lightSurface3),
+          color: isDark ? AppColors.textTertiary : DesignInk.outline,
+          width: 1.4,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: isAdmin ? const Color.fromARGB(255, 241, 248, 255) : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              letterSpacing: 1.0,
-            ),
+          IconButton(
+            tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+            onPressed: onToggleTheme,
+            icon: isDark
+                ? Icon(Icons.dark_mode_rounded, size: 22, color: ink)
+                : SizedBox.square(dimension: 22, child: CustomPaint(painter: _SunPainter(ink))),
           ),
+          NotificationsBell(icon: Icons.notifications_active_rounded, size: 24, color: ink),
           const SizedBox(width: 4),
-          Icon(
-            Icons.arrow_drop_down_rounded,
-            size: 16,
-            color: isAdmin ? Colors.white : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
+          if (profile != null)
+            Tooltip(
+              message: '${profile!.displayName} · ${profile!.role.label}',
+              child: InkWell(
+                onTap: onAvatarTap,
+                customBorder: const CircleBorder(),
+                child: RoleAvatar(role: profile!.role, size: 38),
+              ),
+            ),
         ],
       ),
     );
   }
+}
+
+/// The design's sun: filled center (r 2.72) with eight round-capped rays.
+class _SunPainter extends CustomPainter {
+  _SunPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final k = size.width / 14.4; // design sun spans ~14.4 units
+    canvas.drawCircle(c, 2.72 * k, Paint()..color = color);
+    final ray = Paint()
+      ..color = color
+      ..strokeWidth = 1.0 * k
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 8; i++) {
+      final a = i * math.pi / 4;
+      final dir = Offset(math.cos(a), math.sin(a));
+      canvas.drawLine(c + dir * (4.6 * k), c + dir * (7.2 * k), ray);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SunPainter old) => old.color != color;
 }
 
 class _InfoCard extends StatelessWidget {
