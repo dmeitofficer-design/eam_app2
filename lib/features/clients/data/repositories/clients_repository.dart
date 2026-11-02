@@ -91,6 +91,24 @@ class ClientsRepository {
     return HospitalClient.fromJson(data);
   }
 
+  /// Installed machines per client, counting only machines the caller can
+  /// see (approved ones, plus their own submissions / everything for admins).
+  Future<Map<String, int>> getMachineCounts() async {
+    const page = 1000; // PostgREST's default row limit
+    final counts = <String, int>{};
+    for (var from = 0;; from += page) {
+      final rows = await _client
+          .from(AppConstants.viewInstalledMachines)
+          .select('hospital_id')
+          .range(from, from + page - 1);
+      for (final row in rows as List<dynamic>) {
+        final id = (row as Map<String, dynamic>)['hospital_id'] as String;
+        counts[id] = (counts[id] ?? 0) + 1;
+      }
+      if (rows.length < page) return counts;
+    }
+  }
+
   Future<void> deleteClient(String id) async {
     await _client
         .from(AppConstants.tableHospitalClients)
