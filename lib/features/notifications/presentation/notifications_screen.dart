@@ -134,8 +134,15 @@ class _NotificationTile extends StatelessWidget {
 
 /// Bell with unread count; opens the notifications screen.
 class NotificationsBell extends StatelessWidget {
-  const NotificationsBell({super.key, this.color});
+  const NotificationsBell({
+    super.key,
+    this.color,
+    this.icon = Icons.notifications_rounded,
+    this.size,
+  });
   final Color? color;
+  final IconData icon;
+  final double? size;
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +154,7 @@ class NotificationsBell extends StatelessWidget {
         icon: Badge(
           isLabelVisible: state.unread > 0,
           label: Text(state.unread > 99 ? '99+' : '${state.unread}'),
-          child: Icon(Icons.notifications_rounded, color: color),
+          child: Icon(icon, color: color, size: size),
         ),
       ),
     );
