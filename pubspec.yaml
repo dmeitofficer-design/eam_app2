@@ -75,6 +75,10 @@ flutter:
     - family: Anta
       fonts:
         - asset: assets/fonts/Anta-Regular.ttf
+    - family: Oddlini
+      fonts:
+        - asset: assets/fonts/Oddlini-Bold.ttf
+          weight: 700
 
 msix_config:
   display_name: "DME Client Manager"

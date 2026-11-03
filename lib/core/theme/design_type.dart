@@ -29,8 +29,8 @@ class DesignInk {
 class DesignType {
   DesignType._();
 
-  /// Oddlini Bold is not on Google Fonts. Until the font file is bundled as
-  /// the 'Oddlini' family (see pubspec.yaml), Elms Sans Bold stands in.
+  /// Oddlini Bold, bundled from assets/fonts (see pubspec.yaml). Elms Sans
+  /// Bold is only a fallback for characters the font doesn't have.
   static TextStyle oddlini(double size, Color color) => TextStyle(
         fontFamily: 'Oddlini',
         fontFamilyFallback: [GoogleFonts.elmsSans(fontWeight: FontWeight.w700).fontFamily!],
