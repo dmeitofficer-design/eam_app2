@@ -287,7 +287,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Asset Overview at a glance',
+                              'Overview at a glance',
                               style: DesignType.elms(12.7, DesignInk.subtitle, FontWeight.w300), // 9 → 12.7
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
