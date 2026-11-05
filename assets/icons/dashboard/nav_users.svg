@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="209.27 484.47 40.97 32.09" fill="currentColor"><g>
+        <path d="m214.58,509.84c.94-2.39,3.12-4.04,5.6-4.23,2.81-.21,5.5,1.48,6.6,4.19" fill="none" stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10"/>
+        <g>
+          <rect x="210.27" y="485.47" width="38.97" height="30.09" rx="4.82" ry="4.82" fill="none" stroke="currentColor" stroke-miterlimit="10"/>
+          <circle cx="219.71" cy="496.33" r="5.13" fill="none" stroke="currentColor" stroke-miterlimit="10"/>
+          <g>
+            <path d="m238.41,492.69l.74-.54c1.61-1.18,3.85.12,3.63,2.1l-.1.91c-.11.99.44,1.94,1.35,2.35l.84.37c1.82.8,1.82,3.39,0,4.2l-.84.37c-.91.4-1.46,1.35-1.35,2.35l.1.91c.22,1.98-2.03,3.28-3.63,2.1l-.74-.54c-.81-.59-1.9-.59-2.71,0l-.74.54c-1.61,1.18-3.85-.12-3.63-2.1l.1-.91c.11-.99-.44-1.94-1.35-2.35l-.84-.37c-1.82-.8-1.82-3.39,0-4.2l.84-.37c.91-.4,1.46-1.35,1.35-2.35l-.1-.91c-.22-1.98,2.03-3.28,3.63-2.1l.74.54c.81.59,1.9.59,2.71,0Z" fill="none" stroke="currentColor" stroke-miterlimit="10"/>
+            <circle cx="237.06" cy="499.97" r="3.59" fill="none" stroke="currentColor" stroke-miterlimit="10"/>
+          </g>
+        </g>
+      </g></svg>
