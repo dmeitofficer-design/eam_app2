@@ -1,6 +1,11 @@
 // lib/core/shell/app_shell.dart
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
@@ -22,16 +27,19 @@ class AppShell extends StatelessWidget {
   static const _destinations = [
     _NavDest(
       icon: Icons.grid_view_rounded,
+      svg: 'nav_dashboard',
       label: 'Dashboard',
       path: '/dashboard',
     ),
     _NavDest(
       icon: Icons.local_hospital_rounded,
+      svg: 'nav_clients',
       label: 'Clients',
       path: '/clients',
     ),
     _NavDest(
       icon: Icons.engineering_rounded,
+      svg: 'nav_engineers',
       label: 'Engineers',
       path: '/engineers',
     ),
@@ -39,6 +47,7 @@ class AppShell extends StatelessWidget {
 
   static const _usersDestination = _NavDest(
     icon: Icons.manage_accounts_rounded,
+    svg: 'nav_users',
     label: 'Users',
     path: '/users',
   );
@@ -62,6 +71,7 @@ class AppShell extends StatelessWidget {
       if (isAdmin)
         _NavDest(
           icon: Icons.fact_check_rounded,
+          svg: 'nav_approvals',
           label: 'Approvals',
           path: '/approvals',
           badge: awaitingReview,
@@ -440,7 +450,7 @@ class _RailItem extends StatelessWidget {
   }
 }
 
-// ── Mobile: NavigationBar ────────────────────────────────────
+// ── Mobile: the design's bottom bar ─────────────────────────
 
 class _MobileShell extends StatelessWidget {
   const _MobileShell({
@@ -459,20 +469,165 @@ class _MobileShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: isDark ? AppColors.surface0 : AppColors.lightSurface0,
       body: child,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _BottomBar(
+        destinations: destinations,
         selectedIndex: selectedIndex,
-        onDestinationSelected: (idx) => context.go(destinations[idx].path),
-        destinations: destinations
-            .map((d) => NavigationDestination(
-                  icon: Badge(
-                    isLabelVisible: d.badge > 0,
-                    label: Text('${d.badge}'),
-                    backgroundColor: AppColors.warning,
-                    child: Icon(d.icon),
+        onSelect: (idx) => context.go(destinations[idx].path),
+      ),
+    );
+  }
+}
+
+/// Bottom bar from the navbar design: a rounded #FAFCFF panel with a thin
+/// outline (47.5 units → 67 dp, radius 7.58 → 10.7). The pale blue tile
+/// glides to the tapped item with a slight overshoot.
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({required this.destinations, required this.selectedIndex, required this.onSelect});
+  final List<_NavDest> destinations;
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  static const double height = 67;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = ThemeController.isDarkMode;
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(4, 0, 4, 4 + bottom),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surface1 : const Color(0xFFFAFCFF),
+          borderRadius: BorderRadius.circular(10.7),
+          border: Border.all(color: isDark ? AppColors.surface4 : const Color(0xFF231F20), width: 0.7),
+        ),
+        child: SizedBox(
+          height: height,
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final itemW = box.maxWidth / destinations.length;
+              final tileW = math.min(itemW - 4, 60.0);
+              return Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 420),
+                    curve: Curves.easeOutBack,
+                    left: itemW * selectedIndex + (itemW - tileW) / 2,
+                    top: 4,
+                    width: tileW,
+                    height: height - 8,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.accentSurface : const Color(0xFFE9F4FF),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
-                  label: d.label,
-                ))
-            .toList(),
+                  Row(
+                    children: [
+                      for (var i = 0; i < destinations.length; i++)
+                        Expanded(
+                          child: _BarItem(
+                            dest: destinations[i],
+                            selected: i == selectedIndex,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              if (i != selectedIndex) onSelect(i);
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarItem extends StatefulWidget {
+  const _BarItem({required this.dest, required this.selected, required this.onTap});
+  final _NavDest dest;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_BarItem> createState() => _BarItemState();
+}
+
+class _BarItemState extends State<_BarItem> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (_down != v) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = ThemeController.isDarkMode;
+    // Outlined #231F20 icons and #808285 labels; the selected tab is blue.
+    final iconColor = widget.selected
+        ? const Color(0xFF00AEEF)
+        : (isDark ? AppColors.textPrimary : const Color(0xFF231F20));
+    final labelColor = widget.selected
+        ? const Color(0xFF00AEEF)
+        : (isDark ? AppColors.textSecondary : const Color(0xFF808285));
+    final dest = widget.dest;
+
+    return Semantics(
+      button: true,
+      selected: widget.selected,
+      label: dest.label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => _set(true),
+        onTapUp: (_) => _set(false),
+        onTapCancel: () => _set(false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _down ? 0.86 : 1,
+          duration: Duration(milliseconds: _down ? 90 : 380),
+          curve: _down ? Curves.easeOut : Curves.elasticOut,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 6),
+              AnimatedScale(
+                scale: widget.selected ? 1.06 : 1,
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeOutBack,
+                child: Badge(
+                  isLabelVisible: dest.badge > 0,
+                  label: Text('${dest.badge}'),
+                  backgroundColor: AppColors.warning,
+                  child: TweenAnimationBuilder<Color?>(
+                    tween: ColorTween(end: iconColor),
+                    duration: const Duration(milliseconds: 220),
+                    builder: (context, c, _) => SvgPicture.asset(
+                      'assets/icons/dashboard/${dest.svg}.svg',
+                      height: 34,
+                      colorFilter: ColorFilter.mode(c ?? iconColor, BlendMode.srcIn),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 3),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 220),
+                style: GoogleFonts.poppins(
+                  fontSize: 11.3,
+                  fontWeight: widget.selected ? FontWeight.w400 : FontWeight.w300,
+                  color: labelColor,
+                  height: 1.1,
+                ),
+                child: Text(dest.label, maxLines: 1, overflow: TextOverflow.fade, softWrap: false),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -481,12 +636,16 @@ class _MobileShell extends StatelessWidget {
 class _NavDest {
   const _NavDest({
     required this.icon,
+    required this.svg,
     required this.label,
     required this.path,
     this.badge = 0,
   });
   final int badge;
   final IconData icon;
+
+  /// Bottom bar icon in assets/icons/dashboard.
+  final String svg;
   final String label;
   final String path;
 }
