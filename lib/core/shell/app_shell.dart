@@ -478,8 +478,9 @@ class _MobileShell extends StatelessWidget {
   }
 }
 
-/// Bottom bar from the dashboard design (47.5 units → 67 dp, #FAFCFF).
-/// The pale blue tile glides to the tapped item with a slight overshoot.
+/// Bottom bar from the navbar design: a rounded #FAFCFF panel with a thin
+/// outline (47.5 units → 67 dp, radius 7.58 → 10.7). The pale blue tile
+/// glides to the tapped item with a slight overshoot.
 class _BottomBar extends StatelessWidget {
   const _BottomBar({required this.destinations, required this.selectedIndex, required this.onSelect});
   final List<_NavDest> destinations;
@@ -492,10 +493,14 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = ThemeController.isDarkMode;
     final bottom = MediaQuery.of(context).padding.bottom;
-    return ColoredBox(
-      color: isDark ? AppColors.surface1 : const Color(0xFFFAFCFF),
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottom),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(4, 0, 4, 4 + bottom),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surface1 : const Color(0xFFFAFCFF),
+          borderRadius: BorderRadius.circular(10.7),
+          border: Border.all(color: isDark ? AppColors.surface4 : const Color(0xFF231F20), width: 0.7),
+        ),
         child: SizedBox(
           height: height,
           child: LayoutBuilder(
@@ -508,13 +513,13 @@ class _BottomBar extends StatelessWidget {
                     duration: const Duration(milliseconds: 420),
                     curve: Curves.easeOutBack,
                     left: itemW * selectedIndex + (itemW - tileW) / 2,
-                    top: 1,
+                    top: 4,
                     width: tileW,
-                    height: 50,
+                    height: height - 8,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.accentSurface : const Color(0xFFE9F4FF),
-                        borderRadius: BorderRadius.circular(5.3),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),
@@ -563,9 +568,10 @@ class _BarItemState extends State<_BarItem> {
   @override
   Widget build(BuildContext context) {
     final isDark = ThemeController.isDarkMode;
+    // Outlined #231F20 icons and #808285 labels; the selected tab is blue.
     final iconColor = widget.selected
-        ? const Color(0xFF27AAE1)
-        : (isDark ? AppColors.textSecondary : const Color(0xFF6D6E71));
+        ? const Color(0xFF00AEEF)
+        : (isDark ? AppColors.textPrimary : const Color(0xFF231F20));
     final labelColor = widget.selected
         ? const Color(0xFF00AEEF)
         : (isDark ? AppColors.textSecondary : const Color(0xFF808285));
@@ -588,7 +594,7 @@ class _BarItemState extends State<_BarItem> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               AnimatedScale(
                 scale: widget.selected ? 1.06 : 1,
                 duration: const Duration(milliseconds: 320),
@@ -602,13 +608,13 @@ class _BarItemState extends State<_BarItem> {
                     duration: const Duration(milliseconds: 220),
                     builder: (context, c, _) => SvgPicture.asset(
                       'assets/icons/dashboard/${dest.svg}.svg',
-                      height: 36,
+                      height: 34,
                       colorFilter: ColorFilter.mode(c ?? iconColor, BlendMode.srcIn),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 3),
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 220),
                 style: GoogleFonts.poppins(
