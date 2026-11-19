@@ -23,6 +23,8 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Pinned: 'stable' drifted to 3.50, whose Android build dropped the .env asset (white screen in v1.1.0). Upgrade on purpose and test a release APK first.
+          flutter-version: '3.44.1'
           cache: true
 
       - name: Placeholder .env
@@ -45,6 +47,8 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Pinned: 'stable' drifted to 3.50, whose Android build dropped the .env asset (white screen in v1.1.0). Upgrade on purpose and test a release APK first.
+          flutter-version: '3.44.1'
           cache: true
 
       - name: Placeholder .env

@@ -5,3 +5,7 @@
 -dontwarn com.google.mlkit.vision.text.devanagari.**
 -dontwarn com.google.mlkit.vision.text.japanese.**
 -dontwarn com.google.mlkit.vision.text.korean.**
+
+# ML Kit creates its component registrars by reflection at app start; R8
+# stripped their constructors ("Could not instantiate ...Registrar").
+-keep class com.google.mlkit.** { *; }
