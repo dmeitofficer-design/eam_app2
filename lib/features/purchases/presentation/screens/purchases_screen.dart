@@ -18,6 +18,7 @@ import '../../../../core/widgets/error_state_widget.dart';
 import '../../data/models/purchase_bill.dart';
 import '../../data/repositories/purchases_repository.dart';
 import '../widgets/purchase_widgets.dart';
+import 'add_bill_flow.dart';
 
 class PurchasesScreen extends StatefulWidget {
   const PurchasesScreen({super.key});
@@ -65,6 +66,16 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     }
   }
 
+  /// Manual / OCR / AI-fill, then open the saved bill to link its parts.
+  Future<void> _addBill() async {
+    final id = await startAddBill(context);
+    if (id == null || !mounted) return;
+    await _load();
+    if (!mounted) return;
+    await context.push('/purchases/$id');
+    if (mounted) unawaited(_load());
+  }
+
   Future<void> _open(PurchaseBill bill) async {
     unawaited(HapticFeedback.selectionClick());
     await context.push('/purchases/${bill.id}', extra: bill);
@@ -95,7 +106,21 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Purchases', style: theme.textTheme.headlineLarge),
+                  Row(
+                    children: [
+                      Expanded(child: Text('Purchases', style: theme.textTheme.headlineLarge)),
+                      ElevatedButton.icon(
+                        onPressed: _addBill,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Add bill'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          shape: const StadiumBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
                   Text(
                     bills == null
                         ? 'Vendor bills for PCs and parts'

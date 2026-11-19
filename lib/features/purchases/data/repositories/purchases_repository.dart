@@ -1,6 +1,11 @@
 // lib/features/purchases/data/repositories/purchases_repository.dart
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/utils/error_formatter.dart';
+import '../models/bill_draft.dart';
 import '../models/purchase_bill.dart';
 
 /// Purchase bills (migration 010). RLS limits every call to admins.
@@ -41,6 +46,37 @@ class PurchasesRepository {
     return (data as List)
         .map((e) => MachinePurchasedPart.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<List<String>> getVendorNames() async {
+    final data = await _client.from('purchase_vendors').select('name').order('name');
+    return [for (final r in data as List) (r as Map)['name'] as String];
+  }
+
+  /// Saves a whole bill in one transaction (migration 012); returns its id.
+  Future<String> createBill(BillDraft draft) async {
+    final id = await _client.rpc('create_purchase_bill', params: {'bill': draft.toJson()});
+    return id as String;
+  }
+
+  /// AI-fill: sends the image/PDF to the scan-bill Edge Function (Gemini).
+  /// The API key stays on the server; the function checks the caller is an admin.
+  Future<BillDraft> scanWithAi(Uint8List bytes, String mimeType) async {
+    try {
+      final response = await _client.functions.invoke(
+        'scan-bill',
+        body: {'mime_type': mimeType, 'data': base64Encode(bytes)},
+      );
+      final data = response.data;
+      if (data is Map && data['error'] != null) throw AppException(data['error'].toString());
+      if (data is! Map<String, dynamic>) throw const AppException('The AI reply could not be read.');
+      return BillDraft.fromAiJson(data);
+    } on FunctionException catch (e) {
+      final details = e.details;
+      throw AppException(details is Map && details['error'] != null
+          ? details['error'].toString()
+          : (e.reasonPhrase ?? 'AI-fill failed (${e.status}).'),);
+    }
   }
 
   /// Links serials to a machine, or unlinks them when [machineId] is null.

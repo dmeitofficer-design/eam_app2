@@ -76,3 +76,27 @@ safe to run again. They add:
 `011` is generated from `C:\VSCODE\IT Purchases\data\bills.jsonl` by
 `python scripts/build_seed.py` in that folder. Fix bill data there and
 regenerate, rather than editing `011` by hand.
+
+## Phase 4: Add bill (manual, OCR scan, AI-fill)
+
+1. Run `012_create_purchase_bill.sql` (after 010). It adds
+   `create_purchase_bill()`, which the app's Add bill form uses to save a
+   whole bill in one transaction. Admins and super admins only.
+
+2. **AI-fill only** (Manual and OCR scan work without this):
+   - Create a free API key in Google AI Studio (https://aistudio.google.com),
+     signed in with the company Google account.
+   - Deploy the `scan-bill` Edge Function: Dashboard → **Edge Functions** →
+     **Deploy a new function** → **Via Editor**, name it exactly `scan-bill`,
+     paste `functions/scan-bill/index.ts`, deploy. Keep "Verify JWT" on.
+     Or with the CLI: `supabase functions deploy scan-bill`.
+   - Dashboard → **Edge Functions** → **Secrets**: add `GEMINI_API_KEY`
+     with the key. Optional: `GEMINI_MODEL` (default `gemini-flash-latest`)
+     if Google retires that name.
+
+   On the free tier Google may use the bill images to improve its
+   products. The app shows these terms and asks for agreement before every
+   AI-fill.
+
+OCR scan uses Google ML Kit on the phone (offline, nothing uploaded). It
+runs on Android only; on Windows the option is shown as unavailable.
