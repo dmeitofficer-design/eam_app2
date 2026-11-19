@@ -17,6 +17,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_formatter.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../data/models/bill_draft.dart';
+import '../../data/models/ocr_table.dart';
 import '../../data/repositories/purchases_repository.dart';
 import 'add_bill_page.dart';
 
@@ -60,7 +61,16 @@ Future<BillPrefill> _runOcr(String path) async {
   final recognizer = TextRecognizer();
   try {
     final result = await recognizer.processImage(InputImage.fromFilePath(path));
-    return BillPrefill(draft: BillDraft.fromOcrText(result.text), rawText: result.text);
+    final draft = BillDraft.fromOcrText(result.text);
+    // Item rows come from where each line sits on the photo.
+    final table = parseOcrItems([
+      for (final b in result.blocks)
+        for (final l in b.lines)
+          OcrLine(l.text, l.boundingBox.left, l.boundingBox.top, l.boundingBox.right, l.boundingBox.bottom),
+    ]);
+    draft.items.addAll(table.items);
+    draft.unclear.addAll(table.unclear);
+    return BillPrefill(draft: draft, rawText: result.text);
   } finally {
     unawaited(recognizer.close());
   }

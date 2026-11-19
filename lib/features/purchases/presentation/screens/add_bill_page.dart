@@ -276,7 +276,7 @@ class _AddBillPageState extends State<AddBillPage> {
       );
 
   /// Helper text for a field the AI marked as unclear.
-  String? _check(String field) => _unclear.contains(field) ? 'Check this — the AI wasn\'t sure' : null;
+  String? _check(String field) => _unclear.contains(field) ? 'Check this — it was hard to read' : null;
   bool _itemUnclear(int i) => _unclear.any((f) => f.startsWith('items[$i]'));
 
   @override
@@ -319,17 +319,17 @@ class _AddBillPageState extends State<AddBillPage> {
                           color: AppColors.error,
                           text: 'Couldn\'t read the bill: $_prefillError\nYou can still type it in below.',
                         ),
-                      if (_unclear.isNotEmpty)
-                        const _Banner(
-                          color: AppColors.warning,
-                          text: 'Filled by AI. Fields marked "Check this" were hard to read. Check every field before saving.',
-                        )
-                      else if (widget.prefill != null && _prefillError == null)
+                      if (widget.prefill != null && _prefillError == null)
                         _Banner(
-                          color: AppColors.accent,
-                          text: _rawText != null
-                              ? 'Bill no, date and total were filled where found. Copy the rest from the text below.'
-                              : 'Filled by AI. Check every field before saving.',
+                          color: _unclear.isNotEmpty ? AppColors.warning : AppColors.accent,
+                          text: [
+                            _rawText != null
+                                ? 'Read from the photo on this phone: ${_items.where((i) => i.description.text.trim().isNotEmpty).length} items found.'
+                                : 'Filled by AI.',
+                            if (_unclear.isNotEmpty) 'Items marked "Check this" were hard to read.',
+                            'Check every field before saving.',
+                            if (_rawText != null) 'Copy anything missing from the text below.',
+                          ].join(' '),
                         ),
                       if (_rawText != null) _OcrTextPanel(text: _rawText!),
                       _Section(
@@ -484,7 +484,7 @@ class _ItemEditor extends StatelessWidget {
 
     return _Section(
       title: 'ITEM ${index + 1}',
-      warning: unclear ? 'Check this item — the AI wasn\'t sure' : null,
+      warning: unclear ? 'Check this item — it was hard to read' : null,
       trailing: onRemove == null
           ? null
           : IconButton(
