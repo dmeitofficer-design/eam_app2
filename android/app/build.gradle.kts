@@ -35,6 +35,15 @@ android {
         }
     }
 
+    // AGP 9.1 started applying aapt's default ignore pattern (which contains
+    // ".*", i.e. every hidden file) to Flutter's assets, so `.env` was left
+    // out of release APKs and the app froze on a white screen at start-up.
+    // Same as the default pattern, minus ".*".
+    androidResources {
+        ignoreAssetsPattern =
+            "!.svn:!.git:!.ds_store:!*.scc:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"
+    }
+
     defaultConfig {
         // NOTE: You can change this to "com.dmebd.clientmanager" to match your Windows configuration
         applicationId = "com.example.eam_platform" 
