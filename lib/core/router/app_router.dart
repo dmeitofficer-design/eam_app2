@@ -24,6 +24,9 @@ import '../../features/config/presentation/bloc/config_bloc.dart';
 import '../../features/engineers/presentation/bloc/engineers_bloc.dart';
 import '../../features/engineers/data/repositories/engineers_repository.dart';
 import '../../features/engineers/presentation/screens/engineers_screen.dart';
+import '../../features/purchases/data/models/purchase_bill.dart';
+import '../../features/purchases/presentation/screens/purchases_screen.dart';
+import '../../features/purchases/presentation/screens/purchase_bill_screen.dart';
 import '../shell/app_shell.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
@@ -63,7 +66,9 @@ GoRouter buildRouter(AuthBloc authBloc) {
         final location = state.matchedLocation;
         // Every change is attributed to a name, so ask for one first.
         if (!auth.profile.hasName && location != '/profile') return '/profile';
-        final adminOnly = location.startsWith('/users') || location.startsWith('/approvals');
+        final adminOnly = location.startsWith('/users') ||
+            location.startsWith('/approvals') ||
+            location.startsWith('/purchases');
         if (adminOnly && !auth.profile.isAdmin) return '/dashboard';
       }
 
@@ -171,6 +176,24 @@ GoRouter buildRouter(AuthBloc authBloc) {
               const ApprovalsScreen(),
               state.pageKey,
             ),
+          ),
+
+          GoRoute(
+            path: '/purchases',
+            pageBuilder: (context, state) => _noTransition(
+              const PurchasesScreen(),
+              state.pageKey,
+            ),
+            routes: [
+              GoRoute(
+                path: ':billId',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (context, state) => PurchaseBillScreen(
+                  billId: state.pathParameters['billId']!,
+                  initial: state.extra is PurchaseBill ? state.extra as PurchaseBill : null,
+                ),
+              ),
+            ],
           ),
 
           GoRoute(
