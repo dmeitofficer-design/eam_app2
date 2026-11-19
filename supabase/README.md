@@ -58,3 +58,21 @@ Run `008_approvals_notifications.sql` (after 007). It adds:
   super admins approve (which deletes the record) or reject.
 - A storage rule letting data entry operators upload the invoice PDF of
   their own pending machine.
+
+## Phase 3: IT purchase bills
+
+Run `010_purchases.sql`, then `011_purchase_data.sql` (after 009). Both are
+safe to run again. They add:
+
+- `purchase_vendors`, `purchase_bills`, `purchase_bill_items`,
+  `purchase_item_serials`: the vendor bills for the PCs and parts sent with
+  client machines, 72 bills loaded from the scanned bills PDF.
+- `purchase_item_serials.machine_id`: links a part to the client machine it
+  went into. Empty until assigned in the app; deleting the machine clears it.
+- `purchase_warranty_status` view: warranty end date and status per serial.
+- Admins and super admins only (prices are confidential). Admins add and
+  edit; super admins delete. Viewers and data entry operators see nothing.
+
+`011` is generated from `C:\VSCODE\IT Purchases\data\bills.jsonl` by
+`python scripts/build_seed.py` in that folder. Fix bill data there and
+regenerate, rather than editing `011` by hand.
