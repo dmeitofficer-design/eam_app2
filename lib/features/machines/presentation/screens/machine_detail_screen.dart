@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/updated_by_label.dart';
@@ -20,6 +21,9 @@ import '../../data/models/installed_machine.dart';
 import '../../data/models/engineer.dart';
 import '../../data/models/machine_part.dart';
 import '../../data/repositories/machines_repository.dart';
+import '../../../purchases/data/models/purchase_bill.dart';
+import '../../../purchases/data/repositories/purchases_repository.dart';
+import '../../../purchases/presentation/widgets/purchase_widgets.dart';
 import '../bloc/machines_bloc.dart';
 import 'add_machine_page.dart';
 import 'invoice_viewer_screen.dart';
@@ -247,6 +251,12 @@ class _MachineDetailBody extends StatelessWidget {
               // ── Parts ────────────────────────────────────
               if (machine.parts.isNotEmpty) ...[
                 _PartsCard(parts: machine.parts),
+                const SizedBox(height: AppSpacing.md),
+              ],
+
+              // ── Purchased parts (admin-only: prices) ─────
+              if (isAdmin) ...[
+                _PurchasedPartsCard(machineId: machine.id),
                 const SizedBox(height: AppSpacing.md),
               ],
 
@@ -706,6 +716,95 @@ class _PartsCard extends StatelessWidget {
           );
         }),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Purchased parts card — vendor-bill parts linked to this machine
+// ─────────────────────────────────────────────────────────────
+
+class _PurchasedPartsCard extends StatefulWidget {
+  const _PurchasedPartsCard({required this.machineId});
+  final String machineId;
+
+  @override
+  State<_PurchasedPartsCard> createState() => _PurchasedPartsCardState();
+}
+
+class _PurchasedPartsCardState extends State<_PurchasedPartsCard> {
+  late Future<List<MachinePurchasedPart>> _parts = _fetch();
+
+  Future<List<MachinePurchasedPart>> _fetch() =>
+      context.read<PurchasesRepository>().getPartsForMachine(widget.machineId);
+
+  Future<void> _openBill(String billId) async {
+    await context.push('/purchases/$billId');
+    if (mounted) setState(() => _parts = _fetch()); // links may have changed
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return FutureBuilder<List<MachinePurchasedPart>>(
+      future: _parts,
+      builder: (context, snap) {
+        final parts = snap.data;
+        return _SectionCard(
+          header: 'PURCHASED PARTS${parts == null ? '' : ' (${parts.length})'}',
+          children: [
+            if (snap.hasError)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text("Couldn't load purchased parts.",
+                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.error),),
+                  ),
+                  TextButton(onPressed: () => setState(() => _parts = _fetch()), child: const Text('Retry')),
+                ],
+              )
+            else if (parts == null)
+              const LinearProgressIndicator(minHeight: 2)
+            else if (parts.isEmpty)
+              Text('No vendor-bill parts linked yet. Link them from the Purchases tab.',
+                  style: theme.textTheme.bodySmall,)
+            else
+              for (final (i, p) in parts.indexed) ...[
+                if (i > 0)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Divider(height: 1),
+                  ),
+                InkWell(
+                  onTap: () => _openBill(p.billId),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(p.item.description, style: theme.textTheme.titleSmall,
+                                maxLines: 2, overflow: TextOverflow.ellipsis,),
+                            Text(
+                              'S/N ${p.serial.serialNo}  ·  Bill ${p.billNo}  ·  ${formatBillDate(p.item.billDate)}',
+                              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: AppSpacing.xxs),
+                            WarrantyPill(item: p.item),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                    ],
+                  ),
+                ),
+              ],
+          ],
+        );
+      },
     );
   }
 }

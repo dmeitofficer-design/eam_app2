@@ -28,6 +28,7 @@ import 'features/machines/presentation/bloc/machines_bloc.dart';
 import 'features/dashboard/presentation/bloc/dashboard_bloc.dart'; 
 import 'features/engineers/presentation/bloc/engineers_bloc.dart'; 
 import 'features/config/presentation/bloc/config_bloc.dart'; 
+import 'features/purchases/data/repositories/purchases_repository.dart';
 import 'features/notifications/presentation/notifications_cubit.dart';
 
 Future<void> main() async {
@@ -71,6 +72,7 @@ class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
   late final UsersRepository     _usersRepo     = UsersRepository();
   late final ApprovalsRepository _approvalsRepo = ApprovalsRepository();
   late final NotificationsRepository _notificationsRepo = NotificationsRepository();
+  late final PurchasesRepository _purchasesRepo = PurchasesRepository();
 
   // 🌟 Removed inline cascade invocation to prevent race conditions during early navigation tree boots
   late final AuthBloc _authBloc = AuthBloc(authRepository: _authRepo); //[cite: 6]
@@ -114,6 +116,7 @@ class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
         RepositoryProvider<UsersRepository>.value(value: _usersRepo),
         RepositoryProvider<ApprovalsRepository>.value(value: _approvalsRepo),
         RepositoryProvider<NotificationsRepository>.value(value: _notificationsRepo),
+        RepositoryProvider<PurchasesRepository>.value(value: _purchasesRepo),
       ],
       child: MultiBlocProvider(
         providers: [

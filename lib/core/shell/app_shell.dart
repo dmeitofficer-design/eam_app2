@@ -76,6 +76,13 @@ class AppShell extends StatelessWidget {
           path: '/approvals',
           badge: awaitingReview,
         ),
+      if (isAdmin)
+        const _NavDest(
+          icon: Icons.receipt_long_rounded,
+          svg: 'nav_purchases',
+          label: 'Purchases',
+          path: '/purchases',
+        ),
       if (isAdmin) _usersDestination,
     ];
     final selectedIdx = _selectedIndex(context, destinations);
