@@ -34,14 +34,21 @@ import 'features/notifications/presentation/notifications_cubit.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); //[cite: 6]
 
-  // 1. Load the environment file assets safely from disk
-  await dotenv.load(fileName: '.env'); //[cite: 6]
+  // If start-up fails, show why instead of an endless white screen.
+  try {
+    // 1. Load the environment file assets safely from disk
+    await dotenv.load(fileName: '.env'); //[cite: 6]
 
-  // 2. Initialize Supabase using the loaded environment parameters once
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL'] ?? '', //[cite: 6]
-    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '', //[cite: 6]
-  );
+    // 2. Initialize Supabase using the loaded environment parameters once
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL'] ?? '', //[cite: 6]
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '', //[cite: 6]
+    );
+  } catch (e, st) {
+    debugPrint('Start-up failed: $e\n$st');
+    runApp(_StartupErrorApp(error: e));
+    return;
+  }
 
   // Initialize the theme state from local disk storage 
   await ThemeController.init(); //[cite: 6]
@@ -158,6 +165,40 @@ class _EamAppState extends State<EamApp> with WidgetsBindingObserver {
               routerConfig: _router, //[cite: 6]
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the app cannot start (e.g. missing config), instead of a
+/// blank white screen.
+class _StartupErrorApp extends StatelessWidget {
+  const _StartupErrorApp({required this.error});
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                const Text(
+                  'The app could not start',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                SelectableText('$error', textAlign: TextAlign.center),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -120,6 +120,14 @@ jobs:
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/DME-CM.apk
 
+      # Without .env inside the APK the app hangs on a white screen.
+      - name: Check the APK contains .env
+        run: |
+          if ! unzip -l dist/DME-CM.apk | grep -q 'assets/flutter_assets/\.env$'; then
+            echo "::error::.env is missing from the APK; the app would not start."
+            exit 1
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: android
