@@ -81,6 +81,29 @@ class _PurchaseBillScreenState extends State<PurchaseBillScreen> {
     }
   }
 
+  /// Multi-set bills: tick one set's parts (prefilled), then pick its machine.
+  Future<void> _linkSet() async {
+    final bill = _bill!;
+    final chosen = await showModalBottomSheet<List<PurchaseSerial>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.surface1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, scroll) => _SetPicker(bill: bill, scroll: scroll),
+      ),
+    );
+    if (chosen == null || chosen.isEmpty || !mounted) return;
+    await _link(chosen, title: 'Link this set (${chosen.length} parts) to…');
+  }
+
   @override
   Widget build(BuildContext context) {
     final bill = _bill;
@@ -121,9 +144,15 @@ class _PurchaseBillScreenState extends State<PurchaseBillScreen> {
                               ElevatedButton.icon(
                                 onPressed: _saving
                                     ? null
-                                    : () => _link(unlinked, title: 'Link ${unlinked.length} unlinked parts to…'),
+                                    : bill.setCount > 1
+                                        ? _linkSet
+                                        : () => _link(unlinked, title: 'Link ${unlinked.length} unlinked parts to…'),
                                 icon: const Icon(Icons.link_rounded, size: 18),
-                                label: Text('Link all ${unlinked.length} unlinked parts to a machine'),
+                                label: Text(
+                                  bill.setCount > 1
+                                      ? 'Link one set to a machine (${bill.setCount} sets on this bill)'
+                                      : 'Link all ${unlinked.length} unlinked parts to a machine',
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   minimumSize: const Size(0, 48),
                                   shape: const StadiumBorder(),
@@ -277,6 +306,108 @@ class _ItemsCard extends StatelessWidget {
               ),
             ),
         ],
+      ],
+    );
+  }
+}
+
+/// Checklist of the bill's unlinked serials, one set ticked to start with.
+class _SetPicker extends StatefulWidget {
+  const _SetPicker({required this.bill, required this.scroll});
+  final PurchaseBill bill;
+  final ScrollController scroll;
+
+  @override
+  State<_SetPicker> createState() => _SetPickerState();
+}
+
+class _SetPickerState extends State<_SetPicker> {
+  late final Set<String> _ticked = widget.bill.nextSet().map((s) => s.id).toSet();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', color: AppColors.textPrimary);
+    final items = [
+      for (final i in widget.bill.items)
+        (item: i, open: i.serials.where((s) => s.machineId == null).toList()),
+    ].where((e) => e.open.isNotEmpty).toList();
+    final chosen = [for (final e in items) ...e.open.where((s) => _ticked.contains(s.id))];
+    final sets = widget.bill.setCount;
+
+    return Column(
+      children: [
+        const SizedBox(height: AppSpacing.sm),
+        Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(color: AppColors.surface3, borderRadius: AppRadius.chip),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xs),
+          child: Text('Parts for one machine',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+          child: Text(
+            'One of $sets sets is ticked. Change the ticks if you know which serials went into this PC.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView(
+            controller: widget.scroll,
+            children: [
+              for (final e in items) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
+                  child: Text(
+                    '${e.item.description}  ·  ${e.item.qty % sets == 0 ? '${e.item.qty ~/ sets} per set' : 'extra item'}',
+                    style: theme.textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                for (final s in e.open)
+                  CheckboxListTile(
+                    dense: true,
+                    value: _ticked.contains(s.id),
+                    title: Text(s.serialNo, style: mono),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    onChanged: (v) {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        if (v!) {
+                          _ticked.add(s.id);
+                        } else {
+                          _ticked.remove(s.id);
+                        }
+                      });
+                    },
+                  ),
+              ],
+              const SizedBox(height: AppSpacing.md),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: chosen.isEmpty ? null : () => Navigator.pop(context, chosen),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                label: Text('Next: choose the machine (${chosen.length} parts)'),
+                style: ElevatedButton.styleFrom(minimumSize: const Size(0, 48), shape: const StadiumBorder()),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

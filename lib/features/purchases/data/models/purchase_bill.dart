@@ -41,6 +41,30 @@ class PurchaseBill {
   Iterable<PurchaseSerial> get serials => items.expand((i) => i.serials);
   int get unassignedCount => serials.where((s) => s.machineId == null).length;
 
+  /// How many PC sets the bill covers, one set per client machine: the
+  /// largest quantity that more than half of the serial-tracked items divide
+  /// into evenly (6 monitors, 6 boards, 12 RAM, 1 extra mouse → 6 sets).
+  int get setCount {
+    final qtys = [for (final i in items) if (i.serials.isNotEmpty) i.qty];
+    final candidates = qtys.toSet().toList()..sort((a, b) => b.compareTo(a));
+    for (final n in candidates) {
+      if (n > 1 && qtys.where((q) => q % n == 0).length * 2 > qtys.length) return n;
+    }
+    return 1;
+  }
+
+  /// The unlinked serials of one set: qty / setCount from each item that
+  /// splits evenly (2 of 12 RAM). Items that don't split (a single extra
+  /// mouse on a 6-set bill) are left out for the user to link on their own.
+  List<PurchaseSerial> nextSet() {
+    final sets = setCount;
+    return [
+      for (final i in items)
+        if (i.qty % sets == 0)
+          ...i.serials.where((s) => s.machineId == null).take(i.qty ~/ sets),
+    ];
+  }
+
   /// Lowercased text the purchases search matches against.
   late final String searchText = [
     billNo,
