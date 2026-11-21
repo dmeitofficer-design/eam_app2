@@ -279,7 +279,17 @@ class _MachineDetailBody extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerRight,
-                child: UpdatedByLabel(name: machine.updatedByName, at: machine.updatedAt),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    UpdatedByLabel(
+                      name: machine.createdByName,
+                      at: machine.createdAt,
+                      prefix: 'Added by',
+                    ),
+                    UpdatedByLabel(name: machine.updatedByName, at: machine.updatedAt),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpacing.xl),
             ],
