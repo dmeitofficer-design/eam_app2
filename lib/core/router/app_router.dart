@@ -69,6 +69,9 @@ GoRouter buildRouter(AuthBloc authBloc) {
         final adminOnly = location.startsWith('/users') ||
             location.startsWith('/approvals');
         if (adminOnly && !auth.profile.isAdmin) return '/dashboard';
+        if (location.startsWith('/engineers') && !auth.profile.canSeeEngineers) {
+          return '/dashboard';
+        }
         if (location.startsWith('/purchases') && !auth.profile.canManagePurchases) {
           return '/dashboard';
         }

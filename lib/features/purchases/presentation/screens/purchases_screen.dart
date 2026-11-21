@@ -1,6 +1,6 @@
 // lib/features/purchases/presentation/screens/purchases_screen.dart
 //
-// Admin-only list of vendor bills (PCs and parts sent with machines).
+// Admin / accountant list of vendor bills (PCs and parts sent with machines).
 
 import 'dart:async';
 
@@ -33,6 +33,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   String? _error;
   String _query = '';
   bool _unassignedOnly = false;
+  BillSort _sort = BillSort.newest;
 
   @override
   void initState() {
@@ -52,9 +53,9 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
       final bills = await context.read<PurchasesRepository>().getBills();
       if (mounted) {
         setState(() {
-        _bills = bills;
-        _error = null;
-      });
+          _bills = bills;
+          _error = null;
+        });
       }
     } catch (e) {
       if (!mounted) return;
@@ -91,7 +92,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     final q = _query.trim().toLowerCase();
     final shown = (bills ?? [])
         .where((b) => (!_unassignedOnly || b.unassignedCount > 0) && (q.isEmpty || b.searchText.contains(q)))
-        .toList();
+        .toList()
+      ..sort(_sort.compare);
     final unassigned = (bills ?? []).fold<int>(0, (n, b) => n + b.unassignedCount);
     final total = (bills ?? []).fold<double>(0, (n, b) => n + b.total);
 
@@ -134,7 +136,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                     controller: _searchCtrl,
                     onChanged: (v) => setState(() => _query = v),
                     decoration: InputDecoration(
-                      hintText: 'Search bill no, item, serial, notes…',
+                      hintText: 'Search DMEB ID, bill no, item, serial, notes…',
                       prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary, size: 20),
                       suffixIcon: _query.isEmpty
                           ? null
@@ -149,13 +151,52 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  FilterChip(
-                    label: const Text('Has unlinked parts'),
-                    selected: _unassignedOnly,
-                    onSelected: (v) {
-                      HapticFeedback.selectionClick();
-                      setState(() => _unassignedOnly = v);
-                    },
+                  // Wrap: on narrow phones the sort button drops below the chip.
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      FilterChip(
+                        label: const Text('Has unlinked parts'),
+                        selected: _unassignedOnly,
+                        onSelected: (v) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _unassignedOnly = v);
+                        },
+                      ),
+                      PopupMenuButton<BillSort>(
+                        tooltip: 'Sort by',
+                        initialValue: _sort,
+                        color: AppColors.surface2,
+                        onSelected: (s) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _sort = s);
+                        },
+                        itemBuilder: (_) => [
+                          for (final s in BillSort.values)
+                            CheckedPopupMenuItem(value: s, checked: s == _sort, child: Text(s.label)),
+                        ],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.sort_rounded, size: 18, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  _sort.label,
+                                  style: theme.textTheme.labelMedium,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -191,8 +232,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                             const SizedBox(height: AppSpacing.sm),
                                             Text(
                                               bills.isEmpty ? 'No purchase bills yet.' : 'No bills match.',
-                                              style: theme.textTheme.bodyLarge
-                                                  ?.copyWith(color: AppColors.textSecondary),
+                                              style:
+                                                  theme.textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
                                             ),
                                           ],
                                         ),
@@ -225,9 +266,7 @@ class _BillCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final note = bill.notes?.split('\n').first;
-    final summary = (note != null && note.isNotEmpty)
-        ? note
-        : bill.items.take(2).map((i) => i.description).join(', ');
+    final summary = (note != null && note.isNotEmpty) ? note : bill.items.take(2).map((i) => i.description).join(', ');
     final unassigned = bill.unassignedCount;
 
     return Material(
@@ -254,8 +293,10 @@ class _BillCard extends StatelessWidget {
                 child: Column(
                   children: [
                     Text('${bill.billDate.day}', style: theme.textTheme.titleMedium?.copyWith(height: 1.1)),
-                    Text(DateFormat('MMM yy').format(bill.billDate),
-                        style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),),
+                    Text(
+                      DateFormat('MMM yy').format(bill.billDate),
+                      style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
+                    ),
                   ],
                 ),
               ),
@@ -265,13 +306,18 @@ class _BillCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${bill.billNo}  ·  ${bill.vendor}',
+                      '${bill.displayNo}  ·  ${bill.vendor}',
                       style: theme.textTheme.titleSmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-                    Text(summary, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      'Bill ${bill.billNo}  ·  $summary',
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),

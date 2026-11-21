@@ -65,10 +65,12 @@ class AppShell extends StatelessWidget {
     final authState = context.watch<AuthBloc>().state;
     final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
     final canPurchases = authState is AuthAuthenticated && authState.profile.canManagePurchases;
+    final canEngineers = authState is AuthAuthenticated && authState.profile.canSeeEngineers;
     final awaitingReview =
         context.select<NotificationsCubit, int>((c) => c.state.awaitingReview);
     final destinations = [
-      ..._destinations,
+      for (final d in _destinations)
+        if (d.path != '/engineers' || canEngineers) d,
       if (isAdmin)
         _NavDest(
           icon: Icons.fact_check_rounded,

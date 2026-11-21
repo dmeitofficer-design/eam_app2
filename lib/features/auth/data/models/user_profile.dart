@@ -64,6 +64,9 @@ class UserProfile extends Equatable {
   /// Submissions from this user wait for an admin's approval.
   bool get needsApproval => role == AppRole.dataEntry;
 
+  /// Engineers tab: data entry and above (not viewers or accountants).
+  bool get canSeeEngineers => role >= AppRole.dataEntry;
+
   /// May see, add and edit purchase bills.
   bool get canManagePurchases => isAdmin || role == AppRole.accountant;
 

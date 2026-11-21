@@ -18,9 +18,15 @@ class PurchaseBill {
     this.netPaid,
     this.notes,
     this.sourcePage,
+    this.dmeNo,
   });
 
   final String id;
+
+  /// Our own bill ID (DMEB001…), assigned by the database (migration 015).
+  final String? dmeNo;
+
+  /// The seller's bill number, as printed.
   final String vendor;
   final String billNo;
   final DateTime billDate;
@@ -65,8 +71,15 @@ class PurchaseBill {
     ];
   }
 
+  /// Our ID when assigned, else the seller's number.
+  String get displayNo => dmeNo ?? billNo;
+
+  /// Numeric part of [dmeNo] for sorting (DMEB1000 after DMEB999).
+  int get dmeSeq => int.tryParse(dmeNo?.replaceAll(RegExp(r'\D'), '') ?? '') ?? 0;
+
   /// Lowercased text the purchases search matches against.
   late final String searchText = [
+    dmeNo ?? '',
     billNo,
     vendor,
     notes ?? '',
@@ -83,6 +96,7 @@ class PurchaseBill {
       id: json['id'] as String,
       vendor: (json['purchase_vendors'] as Map?)?['name'] as String? ?? '',
       billNo: json['bill_no'] as String,
+      dmeNo: json['dme_no'] as String?,
       billDate: billDate,
       paymentType: json['payment_type'] as String?,
       soldBy: json['sold_by'] as String?,
@@ -205,7 +219,37 @@ class MachinePurchasedPart {
       serial: PurchaseSerial.fromJson(json),
       item: PurchaseItem.fromJson(itemJson, DateTime.parse(billJson['bill_date'] as String)),
       billId: billJson['id'] as String,
-      billNo: billJson['bill_no'] as String,
+      billNo: billJson['dme_no'] as String? ?? billJson['bill_no'] as String,
     );
   }
+}
+
+/// Sort orders for the purchases list.
+enum BillSort {
+  newest('Newest first'),
+  oldest('Oldest first'),
+  idHigh('Bill ID (newest)'),
+  idLow('Bill ID (oldest)'),
+  totalHigh('Amount: high to low'),
+  totalLow('Amount: low to high'),
+  vendor('Vendor A-Z');
+
+  const BillSort(this.label);
+  final String label;
+
+  int compare(PurchaseBill a, PurchaseBill b) => switch (this) {
+        BillSort.newest => b.billDate.compareTo(a.billDate) != 0
+            ? b.billDate.compareTo(a.billDate)
+            : b.dmeSeq.compareTo(a.dmeSeq),
+        BillSort.oldest => a.billDate.compareTo(b.billDate) != 0
+            ? a.billDate.compareTo(b.billDate)
+            : a.dmeSeq.compareTo(b.dmeSeq),
+        BillSort.idHigh => b.dmeSeq.compareTo(a.dmeSeq),
+        BillSort.idLow => a.dmeSeq.compareTo(b.dmeSeq),
+        BillSort.totalHigh => b.total.compareTo(a.total),
+        BillSort.totalLow => a.total.compareTo(b.total),
+        BillSort.vendor => a.vendor.toLowerCase().compareTo(b.vendor.toLowerCase()) != 0
+            ? a.vendor.toLowerCase().compareTo(b.vendor.toLowerCase())
+            : b.billDate.compareTo(a.billDate),
+      };
 }
