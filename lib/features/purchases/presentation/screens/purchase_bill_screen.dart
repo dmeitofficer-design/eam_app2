@@ -113,7 +113,7 @@ class _PurchaseBillScreenState extends State<PurchaseBillScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface0,
       appBar: AppBar(
-        title: Text(bill == null ? 'Bill' : 'Bill ${bill.billNo}', overflow: TextOverflow.ellipsis),
+        title: Text(bill == null ? 'Bill' : bill.displayNo, overflow: TextOverflow.ellipsis),
         bottom: _saving
             ? const PreferredSize(preferredSize: Size.fromHeight(2), child: LinearProgressIndicator(minHeight: 2))
             : null,
@@ -207,7 +207,8 @@ class _SummaryCard extends StatelessWidget {
               style: theme.textTheme.bodySmall?.copyWith(color: AppColors.warning),),
         const SizedBox(height: AppSpacing.md),
         row('Vendor', bill.vendor),
-        row('Bill no', bill.billNo),
+        if (bill.dmeNo != null) row('Bill ID', bill.dmeNo!),
+        row('Seller bill no', bill.billNo),
         row('Date', formatBillDate(bill.billDate)),
         if (bill.paymentType != null) row('Payment', bill.paymentType!),
         if (bill.soldBy != null) row('Sold by', bill.soldBy!),

@@ -42,7 +42,7 @@ class PurchasesRepository {
   Future<List<MachinePurchasedPart>> getPartsForMachine(String machineId) async {
     final data = await _client
         .from('purchase_item_serials')
-        .select('*, purchase_bill_items(*, purchase_bills(id, bill_no, bill_date))')
+        .select('*, purchase_bill_items(*, purchase_bills(id, bill_no, dme_no, bill_date))')
         .eq('machine_id', machineId)
         .order('serial_no');
     return (data as List)

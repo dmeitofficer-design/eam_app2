@@ -657,7 +657,11 @@ class _EngineersCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PressCard(
       tooltip: 'Open engineers',
-      onTap: () => context.go('/engineers'),
+      // Viewers and accountants have no Engineers tab.
+      onTap: switch (context.read<AuthBloc>().state) {
+        AuthAuthenticated(:final profile) when profile.canSeeEngineers => () => context.go('/engineers'),
+        _ => null,
+      },
       padding: const EdgeInsets.fromLTRB(16, 10, 13, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -848,7 +852,7 @@ class _PlatformCard extends StatelessWidget {
 class _PressCard extends StatefulWidget {
   const _PressCard({required this.child, required this.onTap, required this.padding, required this.tooltip});
   final Widget child;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final EdgeInsets padding;
   final String tooltip;
 
@@ -870,16 +874,21 @@ class _PressCardState extends State<_PressCard> {
       label: widget.tooltip,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: (_) {
-          HapticFeedback.selectionClick();
-          _set(true);
-        },
+        // No onTap: not pressable (no haptics or press animation).
+        onTapDown: widget.onTap == null
+            ? null
+            : (_) {
+                HapticFeedback.selectionClick();
+                _set(true);
+              },
         onTapUp: (_) => _set(false),
         onTapCancel: () => _set(false),
-        onTap: () {
-          HapticFeedback.lightImpact();
-          widget.onTap();
-        },
+        onTap: widget.onTap == null
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                widget.onTap!();
+              },
         child: AnimatedScale(
           scale: _down ? 0.97 : 1,
           duration: Duration(milliseconds: _down ? 110 : 420),

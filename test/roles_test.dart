@@ -24,6 +24,13 @@ void main() {
     expect(_as('super_admin').canManagePurchases, isTrue);
   });
 
+  test('engineers tab: data entry and above only', () {
+    expect(_as('user').canSeeEngineers, isFalse);
+    expect(_as('accountant').canSeeEngineers, isFalse);
+    expect(_as('data_entry').canSeeEngineers, isTrue);
+    expect(_as('admin').canSeeEngineers, isTrue);
+  });
+
   test('admins can assign accountant', () {
     expect(_as('admin').assignableRoles, contains(AppRole.accountant));
   });
