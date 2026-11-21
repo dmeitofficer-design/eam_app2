@@ -47,6 +47,7 @@ class _Look {
 /// The design's names for the roles.
 String _roleName(AppRole role) => switch (role) {
       AppRole.viewer => 'Viewer',
+      AppRole.accountant => 'Accountant',
       AppRole.dataEntry => 'Operator',
       AppRole.admin => 'Admin',
       AppRole.superAdmin => 'Super admin',

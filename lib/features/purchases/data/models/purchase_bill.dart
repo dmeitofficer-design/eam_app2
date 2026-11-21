@@ -176,7 +176,7 @@ class PurchaseSerial {
   final String? clientName;
 
   factory PurchaseSerial.fromJson(Map<String, dynamic> json) {
-    final machine = json['installed_machines'] as Map<String, dynamic>?;
+    final machine = json['installed_machines_view'] as Map<String, dynamic>?;
     final client = machine?['hospital_clients'] as Map<String, dynamic>?;
     return PurchaseSerial(
       id: json['id'] as String,

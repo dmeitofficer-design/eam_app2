@@ -8,14 +8,16 @@ import '../../../../core/utils/error_formatter.dart';
 import '../models/bill_draft.dart';
 import '../models/purchase_bill.dart';
 
-/// Purchase bills (migration 010). RLS limits every call to admins.
+/// Purchase bills (migration 010). RLS limits every call to admins and
+/// accountants (014).
 class PurchasesRepository {
   PurchasesRepository({SupabaseClient? client})
       : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
 
-  static const _machine = 'installed_machines(brand, model, hospital_id, hospital_clients(name))';
+  // The view, not the table: accountants can't read installed_machines directly.
+  static const _machine = 'installed_machines_view(brand, model, hospital_id, hospital_clients(name))';
   static const _billSelect = '*, purchase_vendors(name), '
       'purchase_bill_items(*, purchase_item_serials(*, $_machine))';
 

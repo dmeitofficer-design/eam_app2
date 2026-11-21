@@ -64,6 +64,7 @@ class AppShell extends StatelessWidget {
     final isDesktop = width >= AppConstants.tabletBreakpoint;
     final authState = context.watch<AuthBloc>().state;
     final isAdmin = authState is AuthAuthenticated && authState.profile.isAdmin;
+    final canPurchases = authState is AuthAuthenticated && authState.profile.canManagePurchases;
     final awaitingReview =
         context.select<NotificationsCubit, int>((c) => c.state.awaitingReview);
     final destinations = [
@@ -76,7 +77,7 @@ class AppShell extends StatelessWidget {
           path: '/approvals',
           badge: awaitingReview,
         ),
-      if (isAdmin)
+      if (canPurchases)
         const _NavDest(
           icon: Icons.receipt_long_rounded,
           svg: 'nav_purchases',
