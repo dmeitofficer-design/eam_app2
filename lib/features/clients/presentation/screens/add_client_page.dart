@@ -14,7 +14,9 @@ import '../../../machines/data/models/installed_machine.dart';
 import '../../../machines/data/models/machine_part.dart';
 import '../../../machines/data/repositories/machines_repository.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../data/bd_districts.dart';
 import '../../data/models/hospital_client.dart';
+import '../../data/places_search.dart';
 import '../../data/repositories/clients_repository.dart';
 import '../bloc/clients_bloc.dart';
 import '../../../engineers/presentation/bloc/engineers_bloc.dart';
@@ -75,6 +77,8 @@ class _AddClientViewState extends State<_AddClientView> {
       TextEditingController(text: widget.existingClient?.address ?? '');
   late final _districtCtrl =
       TextEditingController(text: widget.existingClient?.district ?? '');
+  final _districtFocus = FocusNode();
+  bool _searching = false;
   late String _genre = widget.existingClient?.genre ?? '';
   late DivisionType _division =
       widget.existingClient?.division ?? DivisionType.dhaka;
@@ -155,6 +159,62 @@ class _AddClientViewState extends State<_AddClientView> {
 
   final _dateFmt = DateFormat('d MMM yyyy');
 
+  /// Looks up the typed facility name online and fills name/address/district.
+  Future<void> _searchOnline() async {
+    final q = _nameCtrl.text.trim();
+    if (q.isEmpty) {
+      AppFeedback.info(context, 'Type a facility name first');
+      return;
+    }
+    setState(() => _searching = true);
+    final List<PlaceResult> results;
+    try {
+      results = await searchPlaces(q);
+    } catch (e) {
+      if (mounted) AppFeedback.error(context, e.toString());
+      return;
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+    if (!mounted) return;
+    if (results.isEmpty) {
+      AppFeedback.info(context, 'No matches found online');
+      return;
+    }
+    final pick = await showModalBottomSheet<PlaceResult>(
+      context: context,
+      backgroundColor: AppColors.surface2,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final p in results)
+              ListTile(
+                leading: const Icon(Icons.place_outlined),
+                title: Text(p.name),
+                subtitle: Text(p.address),
+                onTap: () => Navigator.pop(ctx, p),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    final district = pick.components
+        .map(matchDistrict)
+        .firstWhere((d) => d != null, orElse: () => null);
+    setState(() {
+      _nameCtrl.text = pick.name;
+      _addressCtrl.text = pick.address;
+      if (district != null) {
+        _districtCtrl.text = district;
+        _division = bdDistricts[district]!;
+      }
+    });
+  }
+
   Widget _buildTwoColumnFields({required Widget left, required Widget right}) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -202,6 +262,7 @@ class _AddClientViewState extends State<_AddClientView> {
     _nameCtrl.dispose();
     _addressCtrl.dispose();
     _districtCtrl.dispose();
+    _districtFocus.dispose();
     _contactNameCtrl.dispose();
     _contactDesigCtrl.dispose();
     _contactPhoneCtrl.dispose();
@@ -300,7 +361,7 @@ class _AddClientViewState extends State<_AddClientView> {
         id: widget.existingClient?.id ?? '',
         name: _nameCtrl.text.trim(),
         address: _addressCtrl.text.trim(),
-        district: _districtCtrl.text.trim(),
+        district: matchDistrict(_districtCtrl.text) ?? _districtCtrl.text.trim(),
         genre: _genre,
         division: _division,
         facilityType: _facilityType,
@@ -475,8 +536,23 @@ class _AddClientViewState extends State<_AddClientView> {
                           label: 'Hospital / Facility Name',
                           child: TextFormField(
                             controller: _nameCtrl,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               hintText: 'e.g. Dhaka Medical College Hospital',
+                              suffixIcon: _searching
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: SizedBox.square(
+                                        dimension: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    )
+                                  : IconButton(
+                                      tooltip: 'Search online',
+                                      icon: const Icon(Icons.travel_explore),
+                                      onPressed: _searchOnline,
+                                    ),
                             ),
                             validator: _required,
                           ),
@@ -495,17 +571,72 @@ class _AddClientViewState extends State<_AddClientView> {
                         _buildTwoColumnFields(
                           left: _Field(
                             label: 'District',
-                            child: TextFormField(
-                              controller: _districtCtrl,
-                              decoration: const InputDecoration(
-                                hintText: 'e.g. Dhaka',
+                            child: RawAutocomplete<String>(
+                              textEditingController: _districtCtrl,
+                              focusNode: _districtFocus,
+                              optionsBuilder: (v) {
+                                final q = v.text.toLowerCase();
+                                return bdDistricts.keys
+                                    .where((d) => d.toLowerCase().contains(q));
+                              },
+                              onSelected: (d) =>
+                                  setState(() => _division = bdDistricts[d]!),
+                              fieldViewBuilder: (context, ctrl, focus, _) =>
+                                  TextFormField(
+                                controller: ctrl,
+                                focusNode: focus,
+                                decoration: const InputDecoration(
+                                  hintText: 'Type to search district',
+                                  suffixIcon: Icon(
+                                    Icons.arrow_drop_down_rounded,
+                                    size: 24,
+                                  ),
+                                ),
+                                validator: (v) => matchDistrict(v ?? '') == null
+                                    ? 'Pick a district from the list'
+                                    : null,
                               ),
-                              validator: _required,
+                              optionsViewBuilder:
+                                  (context, onSelected, options) => Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 4,
+                                  borderRadius: AppRadius.card,
+                                  color: AppColors.surface2,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxHeight: 240,
+                                      maxWidth: 300,
+                                    ),
+                                    child: ListView(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      children: [
+                                        for (final d in options)
+                                          ListTile(
+                                            dense: true,
+                                            title: Text(
+                                              d,
+                                              style: TextStyle(
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            subtitle:
+                                                Text(bdDistricts[d]!.label),
+                                            onTap: () => onSelected(d),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                           right: _Field(
                             label: 'Division',
                             child: DropdownButtonFormField<DivisionType>(
+                              // keyed so district / online-search picks update it
+                              key: ValueKey(_division),
                               initialValue: _division,
                               dropdownColor: AppColors.surface2,
                               decoration: const InputDecoration(),
