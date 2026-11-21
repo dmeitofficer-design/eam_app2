@@ -18,6 +18,7 @@ class RoleAvatar extends StatelessWidget {
 
   static Color ringColor(AppRole role) => switch (role) {
         AppRole.viewer => const Color(0xFF58595B),
+        AppRole.accountant => const Color(0xFFB57BFF),
         AppRole.dataEntry => const Color(0xFFF8A93A),
         AppRole.admin => const Color(0xFF00C8F5),
         AppRole.superAdmin => const Color(0xFF3FFF00),
@@ -68,6 +69,7 @@ class _RoleBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => switch (role) {
         AppRole.viewer => Icon(Icons.visibility_rounded, size: size, color: color),
+        AppRole.accountant => Icon(Icons.receipt_long_rounded, size: size, color: color),
         AppRole.dataEntry => Icon(Icons.keyboard_rounded, size: size, color: color),
         AppRole.admin => SizedBox(
             width: size,

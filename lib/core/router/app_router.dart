@@ -67,9 +67,11 @@ GoRouter buildRouter(AuthBloc authBloc) {
         // Every change is attributed to a name, so ask for one first.
         if (!auth.profile.hasName && location != '/profile') return '/profile';
         final adminOnly = location.startsWith('/users') ||
-            location.startsWith('/approvals') ||
-            location.startsWith('/purchases');
+            location.startsWith('/approvals');
         if (adminOnly && !auth.profile.isAdmin) return '/dashboard';
+        if (location.startsWith('/purchases') && !auth.profile.canManagePurchases) {
+          return '/dashboard';
+        }
       }
 
       return null;

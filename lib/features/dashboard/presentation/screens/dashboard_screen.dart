@@ -1069,6 +1069,8 @@ String _accessDescription(AppRole? role) => switch (role) {
           'manage viewers and operators. Deleting needs a super admin\'s approval.',
       AppRole.dataEntry => 'Operator - can add clients and machines, which wait for an admin\'s '
           'approval. Cannot edit approved data, delete, or see technical details.',
+      AppRole.accountant => 'Accountant - can see clients, basic machine info and warranty, and '
+          'add and edit purchase bills. Cannot change clients or machines.',
       _ => 'Viewer - can see clients, basic machine info and warranty. Cannot add, edit or delete anything.',
     };
 

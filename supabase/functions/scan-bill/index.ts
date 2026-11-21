@@ -137,11 +137,11 @@ Deno.serve(async (req) => {
     );
     const [{ data: active }, { data: isAdmin }] = await Promise.all([
       caller.rpc("session_is_active"),
-      caller.rpc("is_admin_or_super"),
+      caller.rpc("can_manage_purchases"),
     ]);
     if (active !== true) return json({ error: "You are not signed in." }, 401);
     if (isAdmin !== true) {
-      return json({ error: "Only admins can use AI-fill." }, 403);
+      return json({ error: "Only admins and accountants can use AI-fill." }, 403);
     }
 
     const apiKey = Deno.env.get("GEMINI_API_KEY");

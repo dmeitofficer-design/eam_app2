@@ -57,6 +57,7 @@ class HospitalClient extends Equatable {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String? updatedByName;
+  final String? createdByName;
   final String? createdBy;
   final ApprovalStatus approvalStatus;
   final String? rejectionReason;
@@ -75,6 +76,7 @@ class HospitalClient extends Equatable {
     required this.createdAt,
     this.updatedAt,
     this.updatedByName,
+    this.createdByName,
     this.createdBy,
     this.approvalStatus = ApprovalStatus.approved,
     this.rejectionReason,
@@ -96,6 +98,7 @@ class HospitalClient extends Equatable {
             ? DateTime.parse(json['updated_at'] as String)
             : null,
         updatedByName: json['updated_by_name'] as String?,
+        createdByName: json['created_by_name'] as String?,
         createdBy: json['created_by'] as String?,
         approvalStatus: ApprovalStatus.fromString(json['approval_status'] as String?),
         rejectionReason: json['rejection_reason'] as String?,
@@ -141,6 +144,7 @@ class HospitalClient extends Equatable {
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt,
         updatedByName: updatedByName,
+        createdByName: createdByName,
         createdBy: createdBy,
         approvalStatus: approvalStatus,
         rejectionReason: rejectionReason,

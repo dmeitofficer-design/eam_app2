@@ -18,6 +18,7 @@ const corsHeaders = {
 
 const roleLevels: Record<string, number> = {
   user: 1,
+  accountant: 1,
   data_entry: 2,
   admin: 3,
   super_admin: 4,
@@ -82,7 +83,7 @@ Deno.serve(async (req) => {
       if (password.length < 8) {
         return json({ error: "Password must be at least 8 characters." }, 400);
       }
-      if (!["user", "data_entry", "admin"].includes(role)) {
+      if (!["user", "accountant", "data_entry", "admin"].includes(role)) {
         return json({ error: "Invalid role." }, 400);
       }
       if (role === "admin" && callerLevel < 4) {

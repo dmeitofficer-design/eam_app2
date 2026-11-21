@@ -412,6 +412,11 @@ class _ClientProfileCard extends StatelessWidget {
                 : null,
           ),
           const SizedBox(height: AppSpacing.md),
+          UpdatedByLabel(
+            name: client.createdByName,
+            at: client.createdAt,
+            prefix: 'Added by',
+          ),
           UpdatedByLabel(name: client.updatedByName, at: client.updatedAt),
         ],
       ),

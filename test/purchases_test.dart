@@ -33,14 +33,14 @@ Map<String, dynamic> billJson() => {
               'id': 's2',
               'serial_no': '212410111200583',
               'machine_id': 'm1',
-              'installed_machines': {
+              'installed_machines_view': {
                 'brand': 'Fujifilm',
                 'model': 'FDR Smart X',
                 'hospital_id': 'c1',
                 'hospital_clients': {'name': 'Brac Healthcare Siddheswari Branch With A Long Name'},
               },
             },
-            {'id': 's3', 'serial_no': '212410111200579', 'machine_id': null, 'installed_machines': null},
+            {'id': 's3', 'serial_no': '212410111200579', 'machine_id': null, 'installed_machines_view': null},
           ],
         },
         {
@@ -52,7 +52,7 @@ Map<String, dynamic> billJson() => {
           'warranty_months': 1,
           'lifetime_warranty': false,
           'purchase_item_serials': [
-            {'id': 's1', 'serial_no': '3CM4172JKP', 'machine_id': null, 'installed_machines': null},
+            {'id': 's1', 'serial_no': '3CM4172JKP', 'machine_id': null, 'installed_machines_view': null},
           ],
         },
         {

@@ -1,8 +1,10 @@
 import 'package:equatable/equatable.dart';
 
-/// Ordered lowest → highest access.
+/// Ordered lowest → highest access. Accountant is a viewer plus purchases,
+/// so it sits below data entry (it can't submit clients or machines).
 enum AppRole {
   viewer('user', 'Viewer'),
+  accountant('accountant', 'Accountant'),
   dataEntry('data_entry', 'Data Entry'),
   admin('admin', 'Admin'),
   superAdmin('super_admin', 'Super Admin');
@@ -22,6 +24,8 @@ enum AppRole {
         return AppRole.admin;
       case 'data_entry':
         return AppRole.dataEntry;
+      case 'accountant':
+        return AppRole.accountant;
       default:
         return AppRole.viewer;
     }
@@ -60,6 +64,9 @@ class UserProfile extends Equatable {
   /// Submissions from this user wait for an admin's approval.
   bool get needsApproval => role == AppRole.dataEntry;
 
+  /// May see, add and edit purchase bills.
+  bool get canManagePurchases => isAdmin || role == AppRole.accountant;
+
   /// Technical machine config (PC, network, licenses, invoice) is admin-only.
   bool get canSeeMachineDetails => isAdmin;
 
@@ -70,8 +77,8 @@ class UserProfile extends Equatable {
 
   /// Roles this user may assign when creating or editing other users.
   List<AppRole> get assignableRoles => switch (role) {
-        AppRole.superAdmin => const [AppRole.viewer, AppRole.dataEntry, AppRole.admin],
-        AppRole.admin => const [AppRole.viewer, AppRole.dataEntry],
+        AppRole.superAdmin => const [AppRole.viewer, AppRole.accountant, AppRole.dataEntry, AppRole.admin],
+        AppRole.admin => const [AppRole.viewer, AppRole.accountant, AppRole.dataEntry],
         _ => const [],
       };
 
