@@ -23,6 +23,7 @@ import '../../data/repositories/clients_repository.dart';
 import '../../data/models/hospital_client.dart';
 import '../bloc/clients_bloc.dart';
 import 'add_client_page.dart';
+import 'client_pin_sheet.dart';
 import '../../../machines/presentation/screens/add_machine_page.dart';
 
 class ClientDetailScreen extends StatefulWidget {
@@ -91,6 +92,19 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ),
     );
     _loadClient();
+  }
+
+  Future<void> _editPin() async {
+    final client = _client;
+    if (client == null) return;
+    final updated = await showClientPinSheet(context, client);
+    if (updated != null && mounted) {
+      setState(() => _client = updated);
+      AppFeedback.success(
+        context,
+        updated.hasLocation ? 'Map pin saved.' : 'Map pin cleared.',
+      );
+    }
   }
 
   Future<void> _openAddMachine() async {
@@ -264,7 +278,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 children: [
                                   SizedBox(
                                     width: 320,
-                                    child: _ClientProfileCard(client: _client!),
+                                    child: _ClientProfileCard(
+                                      client: _client!,
+                                      onEditPin: isAdmin ? _editPin : null,
+                                    ),
                                   ),
                                   const SizedBox(width: AppSpacing.lg),
                                   Expanded(
@@ -280,7 +297,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _ClientProfileCard(client: _client!),
+                                  _ClientProfileCard(
+                                    client: _client!,
+                                    onEditPin: isAdmin ? _editPin : null,
+                                  ),
                                   const SizedBox(height: AppSpacing.lg),
                                   _MachinesList(
                                     canAdd: canAddMachine,
@@ -301,8 +321,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 // ── Client Profile Card ──────────────────────────────────────
 
 class _ClientProfileCard extends StatelessWidget {
-  const _ClientProfileCard({required this.client});
+  const _ClientProfileCard({required this.client, this.onEditPin});
   final HospitalClient client;
+
+  /// Admins only: set, move or clear the map pin.
+  final VoidCallback? onEditPin;
 
   Future<void> _makeCall(BuildContext context, String phoneNumber) async {
     final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
@@ -371,6 +394,39 @@ class _ClientProfileCard extends StatelessWidget {
               value: client.district,
             ),
           ],
+          const SizedBox(height: AppSpacing.xs),
+          _InfoRow(
+            icon: Icons.pin_drop_rounded,
+            label: client.hasLocation && client.locationSetBy != null
+                ? 'Map pin · set by ${client.locationSetBy}'
+                : 'Map pin',
+            value: client.hasLocation
+                ? '${client.latitude!.toStringAsFixed(5)}, '
+                    '${client.longitude!.toStringAsFixed(5)}'
+                : 'Not set',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (client.hasLocation)
+                  IconButton(
+                    icon: const Icon(Icons.map_rounded, size: 20),
+                    tooltip: 'Open in Maps',
+                    onPressed: () => openInMaps(context, client),
+                  ),
+                if (onEditPin != null)
+                  IconButton(
+                    icon: Icon(
+                      client.hasLocation
+                          ? Icons.edit_location_alt_rounded
+                          : Icons.add_location_alt_rounded,
+                      size: 20,
+                    ),
+                    tooltip: client.hasLocation ? 'Move or clear pin' : 'Set pin',
+                    onPressed: onEditPin,
+                  ),
+              ],
+            ),
+          ),
           const SizedBox(height: AppSpacing.md),
           Text(
             'CONTACT PERSON',

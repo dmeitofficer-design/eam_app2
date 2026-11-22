@@ -2,7 +2,7 @@ name: eam_platform
 description: Enterprise Asset Management Platform for Medical Equipment
 
 publish_to: 'none'
-version: 1.0.1+8
+version: 1.1.6+25
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

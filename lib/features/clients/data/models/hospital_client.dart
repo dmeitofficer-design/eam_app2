@@ -61,6 +61,12 @@ class HospitalClient extends Equatable {
   final String? createdBy;
   final ApprovalStatus approvalStatus;
   final String? rejectionReason;
+  final double? latitude;
+  final double? longitude;
+  final DateTime? locationSetAt;
+  final String? locationSetBy;
+
+  bool get hasLocation => latitude != null && longitude != null;
 
   const HospitalClient({
     required this.id,
@@ -80,6 +86,10 @@ class HospitalClient extends Equatable {
     this.createdBy,
     this.approvalStatus = ApprovalStatus.approved,
     this.rejectionReason,
+    this.latitude,
+    this.longitude,
+    this.locationSetAt,
+    this.locationSetBy,
   });
 
   factory HospitalClient.fromJson(Map<String, dynamic> json) => HospitalClient(
@@ -102,6 +112,12 @@ class HospitalClient extends Equatable {
         createdBy: json['created_by'] as String?,
         approvalStatus: ApprovalStatus.fromString(json['approval_status'] as String?),
         rejectionReason: json['rejection_reason'] as String?,
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+        locationSetAt: json['location_set_at'] != null
+            ? DateTime.parse(json['location_set_at'] as String)
+            : null,
+        locationSetBy: json['location_set_by'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -148,6 +164,10 @@ class HospitalClient extends Equatable {
         createdBy: createdBy,
         approvalStatus: approvalStatus,
         rejectionReason: rejectionReason,
+        latitude: latitude,
+        longitude: longitude,
+        locationSetAt: locationSetAt,
+        locationSetBy: locationSetBy,
       );
 
   @override
