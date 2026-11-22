@@ -100,3 +100,19 @@ regenerate, rather than editing `011` by hand.
 
 OCR scan uses Google ML Kit on the phone (offline, nothing uploaded). It
 runs on Android only; on Windows the option is shown as unavailable.
+
+## Phase 5: smartHr bridge (client map pins)
+
+1. `016_client_location.sql` adds `latitude`, `longitude`,
+   `location_set_at`, `location_set_by` to `hospital_clients`. Both
+   coordinates or neither, inside Bangladesh. In the app only admins can
+   set, move or clear a pin (client detail → Map pin).
+2. `smarthr-bridge` Edge Function (`supabase functions deploy smarthr-bridge --no-verify-jwt`):
+   smartHr searches approved clients and fills an **empty** pin. It never
+   overwrites one. Contract: `smartHr/docs/eam-clients-integration.md`.
+3. Secret, same value in both projects:
+   `supabase secrets set SMARTHR_BRIDGE_SECRET=…` here, `EAM_BRIDGE_SECRET` in smartHr.
+   Until it is set, the bridge refuses every request.
+
+Tests: `deno test supabase/functions/smarthr-bridge/` and
+`supabase test db --linked` (needs Docker running).

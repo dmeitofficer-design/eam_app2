@@ -91,6 +91,17 @@ class ClientsRepository {
     return HospitalClient.fromJson(data);
   }
 
+  /// Admin only (enforced in the database). Both null clears the pin.
+  Future<HospitalClient> setLocation(String id, double? lat, double? lng) async {
+    final data = await _client
+        .from(AppConstants.tableHospitalClients)
+        .update({'latitude': lat, 'longitude': lng})
+        .eq('id', id)
+        .select()
+        .single();
+    return HospitalClient.fromJson(data);
+  }
+
   /// Installed machines per client (total and with expired warranty),
   /// counting only machines the caller can see (approved ones, plus their
   /// own submissions / everything for admins).
