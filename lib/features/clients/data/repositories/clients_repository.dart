@@ -2,6 +2,8 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/hospital_client.dart';
+import '../models/service_entry.dart';
+import '../../../../core/utils/error_formatter.dart';
 import '../../../../core/constants/app_constants.dart';
 
 class ClientsRepository {
@@ -100,6 +102,27 @@ class ClientsRepository {
         .select()
         .single();
     return HospitalClient.fromJson(data);
+  }
+
+  /// Visits and jobs at this client, from smartHr (data entry and above).
+  Future<List<ServiceEntry>> getServiceHistory(String clientId) async {
+    try {
+      final res = await _client.functions.invoke(
+        'smarthr-history',
+        body: {'client_id': clientId},
+      );
+      final entries = (res.data as Map)['entries'] as List? ?? const [];
+      return entries
+          .map((e) => ServiceEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on FunctionException catch (e) {
+      final code = e.details is Map ? (e.details as Map)['error'] : null;
+      throw AppException(
+        code == 'smarthr_unavailable'
+            ? 'smartHr is not reachable right now.'
+            : 'Could not load the service history.',
+      );
+    }
   }
 
   /// Installed machines per client (total and with expired warranty),

@@ -24,6 +24,7 @@ import '../../data/models/hospital_client.dart';
 import '../bloc/clients_bloc.dart';
 import 'add_client_page.dart';
 import 'client_pin_sheet.dart';
+import 'service_history_panel.dart';
 import '../../../machines/presentation/screens/add_machine_page.dart';
 
 class ClientDetailScreen extends StatefulWidget {
@@ -310,6 +311,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   ),
                                 ],
                               ),
+                            if (profile?.canSeeEngineers ?? false) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              ServiceHistoryPanel(clientId: widget.clientId),
+                            ],
                           ],
                         ),
                       ),
