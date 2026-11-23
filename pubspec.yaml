@@ -49,6 +49,8 @@ dependencies:
   ota_update: ^7.1.0
   image_picker: ^1.2.4
   google_mlkit_text_recognition: ^1.0.3
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:

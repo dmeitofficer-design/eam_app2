@@ -8,9 +8,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class PlaceResult {
-  const PlaceResult(this.name, this.address, this.components);
+  const PlaceResult(this.name, this.address, this.components, {this.lat, this.lng});
   final String name;
   final String address;
+  final double? lat;
+  final double? lng;
 
   /// Address component names, most specific first (area → district → division).
   final List<String> components;
@@ -42,6 +44,8 @@ Future<List<PlaceResult>> searchPlaces(String query) async {
       name.isNotEmpty ? name : display.split(',').first,
       display,
       address.values.whereType<String>().toList(),
+      lat: double.tryParse(p['lat']?.toString() ?? ''),
+      lng: double.tryParse(p['lon']?.toString() ?? ''),
     );
   }).toList();
 }

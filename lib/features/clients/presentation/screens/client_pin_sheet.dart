@@ -1,15 +1,18 @@
 // lib/features/clients/presentation/screens/client_pin_sheet.dart
 //
-// Admin-only: set, move or clear a client's map pin. Coordinates are
-// pasted as "lat, lng" (Google Maps: long-press a spot, tap the numbers
-// to copy). smartHr can only fill an empty pin; changing one is done here.
+// Admin-only: set, move or clear a client's map pin. Search a place
+// (OpenStreetMap), tap the map, or paste "lat, lng" from Google Maps.
+// smartHr can only fill an empty pin; changing one is done here.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../data/models/hospital_client.dart';
+import '../../data/places_search.dart';
 import '../../data/repositories/clients_repository.dart';
 
 /// "23.75, 90.38" → (23.75, 90.38) when inside Bangladesh (the database check), else null.
@@ -41,6 +44,7 @@ Future<HospitalClient?> showClientPinSheet(BuildContext context, HospitalClient 
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
+    enableDrag: false, // dragging pans the map, not the sheet
     builder: (_) => RepositoryProvider.value(
       value: context.read<ClientsRepository>(),
       child: _ClientPinSheet(client: client),
@@ -57,26 +61,81 @@ class _ClientPinSheet extends StatefulWidget {
 }
 
 class _ClientPinSheetState extends State<_ClientPinSheet> {
-  late final _ctrl = TextEditingController(
+  static const _bangladesh = LatLng(23.7, 90.35);
+
+  final _map = MapController();
+  late final _searchCtrl = TextEditingController(
+    text: [widget.client.name, widget.client.district]
+        .where((s) => s.isNotEmpty)
+        .join(', '),
+  );
+  late final _coordsCtrl = TextEditingController(
     text: widget.client.hasLocation
         ? '${widget.client.latitude}, ${widget.client.longitude}'
         : '',
   );
+  late LatLng? _pin = widget.client.hasLocation
+      ? LatLng(widget.client.latitude!, widget.client.longitude!)
+      : null;
+  List<PlaceResult> _results = const [];
+  bool _searching = false;
   String? _error;
   bool _saving = false;
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _searchCtrl.dispose();
+    _coordsCtrl.dispose();
+    _map.dispose();
     super.dispose();
   }
 
+  void _setPin(LatLng p, {bool move = false}) {
+    setState(() {
+      _pin = p;
+      _error = null;
+      _coordsCtrl.text =
+          '${p.latitude.toStringAsFixed(6)}, ${p.longitude.toStringAsFixed(6)}';
+    });
+    if (move) _map.move(p, 16);
+  }
+
+  // Nominatim allows 1 request/second: search on button or Enter only.
+  Future<void> _search() async {
+    final q = _searchCtrl.text.trim();
+    if (q.length < 3 || _searching) return;
+    setState(() => _searching = true);
+    try {
+      final found = (await searchPlaces(q)).where((p) => p.lat != null && p.lng != null).toList();
+      if (!mounted) return;
+      setState(() => _results = found);
+      if (found.isEmpty) AppFeedback.info(context, 'No places found. Tap the map instead.');
+    } catch (_) {
+      if (mounted) AppFeedback.error(context, 'Place search failed. Check the connection.');
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  void _coordsTyped(String text) {
+    final p = parseLatLng(text);
+    if (p == null) {
+      setState(() => _error = 'Enter "latitude, longitude" inside Bangladesh');
+      return;
+    }
+    _setPin(LatLng(p.$1, p.$2), move: true);
+  }
+
   Future<void> _save({required bool clear}) async {
-    final parsed = clear ? null : parseLatLng(_ctrl.text);
+    final pin = _pin;
+    final parsed = clear || pin == null
+        ? null
+        : parseLatLng('${pin.latitude}, ${pin.longitude}');
     if (!clear && parsed == null) {
       setState(
-        () => _error = 'Enter "latitude, longitude" inside Bangladesh, '
-            'e.g. 23.7516, 90.3825',
+        () => _error = pin == null
+            ? 'Search a place or tap the map to drop the pin'
+            : 'The pin must be inside Bangladesh',
       );
       return;
     }
@@ -100,7 +159,7 @@ class _ClientPinSheetState extends State<_ClientPinSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.lg,
@@ -114,22 +173,96 @@ class _ClientPinSheetState extends State<_ClientPinSheet> {
           Text('Map pin', style: theme.textTheme.titleLarge),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Paste the coordinates from Google Maps (long-press the spot, '
-            'then tap the numbers to copy them).',
+            'Search the place, or tap the map where the client is.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(
-            controller: _ctrl,
-            autofocus: true,
+            controller: _searchCtrl,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              labelText: 'Search place',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: _searching
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      tooltip: 'Search',
+                      onPressed: _search,
+                    ),
+            ),
+            onSubmitted: (_) => _search(),
+          ),
+          for (final p in _results.take(5))
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.place_outlined),
+              title: Text(p.name),
+              subtitle: Text(p.address, maxLines: 2, overflow: TextOverflow.ellipsis),
+              onTap: () {
+                setState(() => _results = const []);
+                _setPin(LatLng(p.lat!, p.lng!), move: true);
+              },
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          ClipRRect(
+            borderRadius: AppRadius.card,
+            child: SizedBox(
+              height: 320,
+              child: FlutterMap(
+                mapController: _map,
+                options: MapOptions(
+                  initialCenter: _pin ?? _bangladesh,
+                  initialZoom: _pin != null ? 16 : 7,
+                  onTap: (_, p) => _setPin(p),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.eam_platform',
+                  ),
+                  if (_pin != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _pin!,
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.topCenter,
+                          child: const Icon(
+                            Icons.location_on_rounded,
+                            color: AppColors.error,
+                            size: 40,
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SimpleAttributionWidget(
+                    source: Text('OpenStreetMap contributors'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _coordsCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
             decoration: InputDecoration(
               labelText: 'Latitude, longitude',
-              hintText: '23.7516, 90.3825',
+              helperText: 'Or paste the numbers from Google Maps, then press Enter',
               prefixIcon: const Icon(Icons.pin_drop_rounded),
               errorText: _error,
             ),
-            onSubmitted: (_) => _save(clear: false),
+            onSubmitted: _coordsTyped,
           ),
           const SizedBox(height: AppSpacing.lg),
           Row(
@@ -146,7 +279,8 @@ class _ClientPinSheetState extends State<_ClientPinSheet> {
                 onPressed: _saving ? null : () => _save(clear: false),
                 child: _saving
                     ? const SizedBox(
-                        width: 18, height: 18,
+                        width: 18,
+                        height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Text('Save pin'),

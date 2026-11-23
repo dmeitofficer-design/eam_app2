@@ -116,3 +116,10 @@ runs on Android only; on Windows the option is shown as unavailable.
 
 Tests: `deno test supabase/functions/smarthr-bridge/` and
 `supabase test db --linked` (needs Docker running).
+
+### Service history (EAM ← smartHr)
+
+`smarthr-history` Edge Function (JWT verified, data entry and above) reads a
+client's visits and jobs from smartHr's `eam-history` with the same shared
+secret. Secret `SMARTHR_HISTORY_URL` holds that function's URL. Contract:
+`docs/smarthr-service-history.md`.
