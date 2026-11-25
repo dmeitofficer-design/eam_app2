@@ -39,6 +39,7 @@ class DeletionRequest extends Equatable {
         'installed_machines' => 'Machine',
         'machine_config' => 'Config option',
         'engineers' => 'Engineer',
+        'purchase_bills' => 'Purchase bill',
         _ => 'Record',
       };
 

@@ -12,6 +12,7 @@ import '../../features/auth/presentation/screens/change_password_page.dart';
 import '../../features/auth/presentation/screens/device_management_screen.dart'; 
 import '../../features/auth/presentation/screens/profile_screen.dart';
 import '../../features/users/presentation/screens/users_screen.dart';
+import '../../features/trash/presentation/trash_screen.dart';
 import '../../features/approvals/presentation/screens/approvals_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
@@ -69,6 +70,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
         final adminOnly = location.startsWith('/users') ||
             location.startsWith('/approvals');
         if (adminOnly && !auth.profile.isAdmin) return '/dashboard';
+        if (location.startsWith('/trash') && !auth.profile.isSuperAdmin) return '/dashboard';
         if (location.startsWith('/engineers') && !auth.profile.canSeeEngineers) {
           return '/dashboard';
         }
@@ -205,6 +207,14 @@ GoRouter buildRouter(AuthBloc authBloc) {
             path: '/notifications',
             pageBuilder: (context, state) => _noTransition(
               const NotificationsScreen(),
+              state.pageKey,
+            ),
+          ),
+
+          GoRoute(
+            path: '/trash',
+            pageBuilder: (context, state) => _noTransition(
+              const TrashScreen(),
               state.pageKey,
             ),
           ),

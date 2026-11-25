@@ -13,9 +13,15 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_formatter.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../../../core/widgets/error_state_widget.dart';
+import '../../../../shared/widgets/updated_by_label.dart';
+import '../../../approvals/data/repositories/approvals_repository.dart';
+import '../../../approvals/presentation/delete_or_request.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../data/models/bill_draft.dart';
 import '../../data/models/purchase_bill.dart';
 import '../../data/repositories/purchases_repository.dart';
 import '../widgets/purchase_widgets.dart';
+import 'add_bill_page.dart';
 
 class PurchaseBillScreen extends StatefulWidget {
   const PurchaseBillScreen({super.key, required this.billId, this.initial});
@@ -81,6 +87,40 @@ class _PurchaseBillScreenState extends State<PurchaseBillScreen> {
     }
   }
 
+  Future<void> _edit() async {
+    final bill = _bill;
+    if (bill == null) return;
+    final saved = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => AddBillPage(
+          editBillId: bill.id,
+          sourceLabel: bill.displayNo,
+          prefill: Future.value(BillPrefill(draft: BillDraft.fromBill(bill))),
+        ),
+      ),
+    );
+    if (saved != null && mounted) await _load();
+  }
+
+  Future<void> _delete() async {
+    final bill = _bill;
+    if (bill == null) return;
+    final deleted = await deleteOrRequest(
+      context,
+      target: DeletionTarget.purchaseBill,
+      id: bill.id,
+      label: bill.displayNo,
+      link: '/purchases/${bill.id}',
+      consequence: 'This deletes ${bill.displayNo} with its items and serials. '
+          'Parts linked to machines are unlinked.',
+      deleteNow: () => context.read<PurchasesRepository>().deleteBill(bill.id),
+    );
+    if (deleted && mounted) {
+      AppFeedback.success(context, '${bill.displayNo} moved to the Trash.');
+      context.pop();
+    }
+  }
+
   /// Multi-set bills: tick one set's parts (prefilled), then pick its machine.
   Future<void> _linkSet() async {
     final bill = _bill!;
@@ -109,11 +149,29 @@ class _PurchaseBillScreenState extends State<PurchaseBillScreen> {
     final bill = _bill;
     final isDesktop = MediaQuery.of(context).size.width >= 900;
     final unlinked = bill?.serials.where((s) => s.machineId == null).toList() ?? const [];
+    final auth = context.watch<AuthBloc>().state;
+    final profile = auth is AuthAuthenticated ? auth.profile : null;
 
     return Scaffold(
       backgroundColor: AppColors.surface0,
       appBar: AppBar(
         title: Text(bill == null ? 'Bill' : bill.displayNo, overflow: TextOverflow.ellipsis),
+        actions: [
+          if (bill != null && (profile?.canManagePurchases ?? false))
+            IconButton(
+              icon: const Icon(Icons.edit_rounded),
+              tooltip: 'Edit bill',
+              onPressed: _saving ? null : _edit,
+            ),
+          // Super admins delete; admins send a deletion request.
+          if (bill != null && (profile?.isAdmin ?? false))
+            IconButton(
+              icon: const Icon(Icons.delete_rounded),
+              tooltip: 'Delete bill',
+              color: AppColors.error,
+              onPressed: _saving ? null : _delete,
+            ),
+        ],
         bottom: _saving
             ? const PreferredSize(preferredSize: Size.fromHeight(2), child: LinearProgressIndicator(minHeight: 2))
             : null,
@@ -222,6 +280,11 @@ class _SummaryCard extends StatelessWidget {
             child: Text(bill.notes!, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textPrimary)),
           ),
         ],
+        const SizedBox(height: AppSpacing.sm),
+        UpdatedByLabel(name: bill.createdByName, at: bill.createdAt, prefix: 'Added by'),
+        if (bill.updatedByName != null && bill.updatedAt != null &&
+            bill.createdAt != null && bill.updatedAt!.difference(bill.createdAt!).inSeconds > 5)
+          UpdatedByLabel(name: bill.updatedByName, at: bill.updatedAt, prefix: 'Edited by'),
       ],
     );
   }

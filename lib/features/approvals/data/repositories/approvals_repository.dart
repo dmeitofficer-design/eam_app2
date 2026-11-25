@@ -20,7 +20,8 @@ enum DeletionTarget {
   client('hospital_clients'),
   machine('installed_machines'),
   config('machine_config'),
-  engineer('engineers');
+  engineer('engineers'),
+  purchaseBill('purchase_bills');
 
   const DeletionTarget(this.table);
   final String table;

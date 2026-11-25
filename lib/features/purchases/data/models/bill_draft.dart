@@ -3,6 +3,8 @@
 // An unsaved bill: what the Add bill form edits. Filled empty (manual),
 // from on-device OCR text (header fields only), or from the AI reply.
 
+import 'purchase_bill.dart';
+
 class BillDraft {
   BillDraft({
     this.vendor = '',
@@ -46,6 +48,28 @@ class BillDraft {
         'notes': notes.trim(),
         'items': [for (final i in items) i.toJson()],
       };
+
+  /// An existing bill, for the Edit bill form.
+  factory BillDraft.fromBill(PurchaseBill b) => BillDraft(
+        vendor: b.vendor,
+        billNo: b.billNo,
+        billDate: b.billDate,
+        paymentType: b.paymentType,
+        soldBy: b.soldBy ?? '',
+        total: b.total,
+        notes: b.notes ?? '',
+        items: [
+          for (final i in b.items)
+            ItemDraft(
+              description: i.description,
+              qty: i.qty,
+              unitPrice: i.unitPrice,
+              warrantyMonths: i.warrantyMonths,
+              lifetime: i.lifetimeWarranty,
+              serials: [for (final s in i.serials) s.serialNo],
+            ),
+        ],
+      );
 
   /// Reads the scan-bill reply. Tolerant: the model may leave fields out or
   /// send numbers as strings, so anything unreadable stays empty.

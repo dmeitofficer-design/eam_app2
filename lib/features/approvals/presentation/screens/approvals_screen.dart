@@ -124,7 +124,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
       note = await askForText(
         context,
         title: 'Delete ${r.targetLabel}?',
-        message: 'This permanently deletes the ${r.kindLabel.toLowerCase()}.',
+        message: 'The ${r.kindLabel.toLowerCase()} goes to the Trash, where it can be restored for a few days.',
         hint: 'Note for ${r.requestedByName ?? 'the admin'} (optional)',
         confirmLabel: 'Delete',
         destructive: true,
@@ -159,6 +159,12 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
       appBar: AppBar(
         title: const Text('Approvals'),
         actions: [
+          if (me.isSuperAdmin)
+            TextButton.icon(
+              onPressed: () => context.push('/trash'),
+              icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+              label: const Text('Trash'),
+            ),
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh_rounded),

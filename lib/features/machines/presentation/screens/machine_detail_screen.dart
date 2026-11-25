@@ -82,7 +82,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       label: label,
       link: '/clients/${widget.clientId}/machine/${machine.id}',
       ownSubmission: ownSubmission,
-      consequence: 'This permanently deletes "$label" with its parts and engineer assignments.',
+      consequence: 'This deletes "$label" with its parts and engineer assignments.',
       deleteNow: () => context.read<MachinesRepository>().deleteMachine(machine.id),
     );
     if (deleted && mounted) {

@@ -19,7 +19,16 @@ class PurchaseBill {
     this.notes,
     this.sourcePage,
     this.dmeNo,
+    this.createdByName,
+    this.createdAt,
+    this.updatedByName,
+    this.updatedAt,
   });
+
+  final String? createdByName;
+  final DateTime? createdAt;
+  final String? updatedByName;
+  final DateTime? updatedAt;
 
   final String id;
 
@@ -105,6 +114,10 @@ class PurchaseBill {
       notes: json['notes'] as String?,
       sourcePage: json['source_page'] as int?,
       items: items,
+      createdByName: json['created_by_name'] as String?,
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? ''),
+      updatedByName: json['updated_by_name'] as String?,
+      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? ''),
     );
   }
 }
