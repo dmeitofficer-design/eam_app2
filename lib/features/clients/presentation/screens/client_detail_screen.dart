@@ -146,7 +146,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       label: client.name,
       link: '/clients/${client.id}',
       ownSubmission: _isOwnUnapproved(client),
-      consequence: 'This permanently deletes "${client.name}". '
+      consequence: 'This deletes "${client.name}". '
           'Clients that still have machines cannot be deleted.',
       deleteNow: () => context.read<ClientsRepository>().deleteClient(client.id),
     );

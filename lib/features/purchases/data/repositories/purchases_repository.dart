@@ -61,6 +61,16 @@ class PurchasesRepository {
     return id as String;
   }
 
+  /// Replaces the bill's header and items (migration 017); serial links stay.
+  Future<void> updateBill(String id, BillDraft draft) async {
+    await _client.rpc('update_purchase_bill', params: {'bill_id': id, 'bill': draft.toJson()});
+  }
+
+  /// Moves the bill (with its items and serials) to the Trash. Super admins only.
+  Future<void> deleteBill(String id) async {
+    await _client.from('purchase_bills').delete().eq('id', id);
+  }
+
   /// AI-fill: sends the image/PDF to the scan-bill Edge Function (Gemini).
   /// The API key stays on the server; the function checks the caller is an admin.
   Future<BillDraft> scanWithAi(Uint8List bytes, String mimeType) async {

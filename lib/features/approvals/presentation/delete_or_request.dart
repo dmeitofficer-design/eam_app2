@@ -34,7 +34,8 @@ Future<bool> deleteOrRequest(
     final ok = await ConfirmDialog.show(
       context,
       title: ownSubmission && !profile.canDelete ? 'Withdraw submission?' : 'Delete $label?',
-      message: consequence ?? 'This cannot be undone.',
+      message: '${consequence ?? 'It is removed for everyone.'}\n\n'
+          'It goes to the Trash, where a super admin can restore it until it is deleted for good.',
       confirmLabel: ownSubmission && !profile.canDelete ? 'Withdraw' : 'Delete',
       destructive: true,
     );

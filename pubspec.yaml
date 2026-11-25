@@ -51,6 +51,7 @@ dependencies:
   google_mlkit_text_recognition: ^1.0.3
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
+  syncfusion_flutter_pdf: 34.1.29
 
 dev_dependencies:
   flutter_test:

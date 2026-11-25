@@ -123,3 +123,21 @@ Tests: `deno test supabase/functions/smarthr-bridge/` and
 client's visits and jobs from smartHr's `eam-history` with the same shared
 secret. Secret `SMARTHR_HISTORY_URL` holds that function's URL. Contract:
 `docs/smarthr-service-history.md`.
+
+## Phase 6: Trash, editing purchase bills
+
+Run `017_trash.sql` (after 016). It adds:
+
+- **Trash**: everything deleted (clients, machines, engineers, config
+  options, purchase bills, with their parts / items / serials) is copied
+  to `trash` first. Super admins see it from **Approvals → Trash**, and can
+  restore it (same ids, bill numbers and "added by") or delete it for good.
+- Kept for `app_settings.trash_retention_days` days (default 3; super
+  admins change it on the Trash page). `pg_cron` job `purge-trash` runs
+  hourly and removes older batches.
+- `update_purchase_bill()`: edit a whole bill; serials keep their machine
+  link. Deletion requests may target purchase bills.
+- Fixes `set_audit_fields()`, which failed on any edit of a purchase bill.
+
+Storage files (machine invoice PDFs) are not deleted with their machine,
+then or now.

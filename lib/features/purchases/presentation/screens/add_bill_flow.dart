@@ -4,6 +4,7 @@
 // get the photo/file, then open the form prefilled with what was found.
 
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -18,10 +19,11 @@ import '../../../../core/utils/error_formatter.dart';
 import '../../../../core/utils/feedback.dart';
 import '../../data/models/bill_draft.dart';
 import '../../data/models/ocr_table.dart';
+import '../../data/models/pdf_bill.dart';
 import '../../data/repositories/purchases_repository.dart';
 import 'add_bill_page.dart';
 
-enum _Mode { manual, ocr, ai }
+enum _Mode { manual, pdf, ocr, ai }
 
 /// ML Kit text recognition only exists on Android and iOS.
 bool get ocrSupported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
@@ -42,6 +44,16 @@ Future<String?> startAddBill(BuildContext context) async {
     if (file == null || !context.mounted) return null;
     source = 'Scan (OCR)';
     prefill = _runOcr(file.path!);
+  } else if (mode == _Mode.pdf) {
+    final file = await _pickPdf(context);
+    if (file == null || !context.mounted) return null;
+    source = 'From PDF (on this device)';
+    final bytes = file.bytes;
+    // Off the UI thread: a long PDF takes a moment to read.
+    prefill = Isolate.run(() {
+      final words = readPdfWords(bytes);
+      return (draft: parsePdfBill(words), text: pdfText(words));
+    }).then((r) => BillPrefill(draft: r.draft, rawText: r.text));
   } else if (mode == _Mode.ai) {
     final accepted = await _showSheet<bool>(context, (c) => const _AiTermsSheet());
     if (accepted != true || !context.mounted) return null;
@@ -77,6 +89,20 @@ Future<BillPrefill> _runOcr(String path) async {
 }
 
 typedef _PickedFile = ({Uint8List bytes, String mimeType, String? path});
+
+/// The seller's PDF bill, read on this device (nothing is uploaded).
+Future<_PickedFile?> _pickPdf(BuildContext context) async {
+  try {
+    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+    final f = result?.files.single;
+    if (f == null) return null;
+    if (f.size > _maxFileBytes) throw const AppException('That PDF is over 8 MB.');
+    return (bytes: await f.readAsBytes(), mimeType: 'application/pdf', path: f.path);
+  } catch (e) {
+    if (context.mounted) AppFeedback.error(context, ErrorFormatter.format(e));
+    return null;
+  }
+}
 
 Future<_PickedFile?> _pickBillFile(BuildContext context, {required bool allowPdf}) async {
   try {
@@ -201,6 +227,12 @@ class _ModeSheet extends StatelessWidget {
       subtitle: 'Every option ends in the same form; nothing is saved until you check it and tap Save.',
       children: [
         option(_Mode.manual, Icons.edit_note_rounded, 'Manual', 'Type the bill in yourself.'),
+        option(
+          _Mode.pdf,
+          Icons.picture_as_pdf_rounded,
+          'Upload PDF',
+          "The seller's PDF bill (Hitech / ZAB ERP). Read on this device, offline: fills the whole form.",
+        ),
         option(
           _Mode.ocr,
           Icons.document_scanner_rounded,

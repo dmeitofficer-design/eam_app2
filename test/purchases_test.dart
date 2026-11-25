@@ -1,3 +1,5 @@
+import 'package:eam_platform/features/auth/data/repositories/auth_repository.dart';
+import 'package:eam_platform/features/auth/presentation/bloc/auth_bloc.dart' show AuthBloc;
 import 'package:eam_platform/features/purchases/data/models/purchase_bill.dart';
 import 'package:eam_platform/features/purchases/data/repositories/purchases_repository.dart';
 import 'package:eam_platform/features/purchases/presentation/screens/purchase_bill_screen.dart';
@@ -116,9 +118,23 @@ class _FakeRepo extends PurchasesRepository {
       PurchaseBill.fromJson(id == 'b6' ? sixSetBillJson() : billJson());
 }
 
+// Signed out: the bill screen shows no edit/delete buttons.
+class _FakeAuthRepo extends AuthRepository {
+  _FakeAuthRepo() : super(
+          client: SupabaseClient('http://localhost', 'test',
+              authOptions: const AuthClientOptions(autoRefreshToken: false)),
+        );
+
+  @override
+  Stream<AuthState> get authStateChanges => const Stream.empty();
+}
+
 Widget _app(Widget child) => RepositoryProvider<PurchasesRepository>(
       create: (_) => _FakeRepo(),
-      child: MaterialApp(home: child),
+      child: BlocProvider(
+        create: (_) => AuthBloc(authRepository: _FakeAuthRepo()),
+        child: MaterialApp(home: child),
+      ),
     );
 
 void main() {

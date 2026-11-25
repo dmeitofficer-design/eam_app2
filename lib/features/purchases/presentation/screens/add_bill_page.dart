@@ -24,7 +24,10 @@ class BillPrefill {
 }
 
 class AddBillPage extends StatefulWidget {
-  const AddBillPage({super.key, this.prefill, this.sourceLabel = 'Manual'});
+  const AddBillPage({super.key, this.prefill, this.sourceLabel = 'Manual', this.editBillId});
+
+  /// Set when editing an existing bill: Save replaces it instead of adding one.
+  final String? editBillId;
 
   /// Null for manual entry.
   final Future<BillPrefill>? prefill;
@@ -218,7 +221,10 @@ class _AddBillPageState extends State<AddBillPage> {
 
     setState(() => _saving = true);
     try {
-      final id = await context.read<PurchasesRepository>().createBill(draft);
+      final repo = context.read<PurchasesRepository>();
+      final editId = widget.editBillId;
+      final id = editId ?? await repo.createBill(draft);
+      if (editId != null) await repo.updateBill(editId, draft);
       if (!mounted) return;
       unawaited(HapticFeedback.lightImpact());
       AppFeedback.success(context, 'Bill ${draft.billNo.trim()} saved.');
@@ -290,7 +296,7 @@ class _AddBillPageState extends State<AddBillPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add bill'),
+            Text(widget.editBillId == null ? 'Add bill' : 'Edit bill'),
             Text(widget.sourceLabel, style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textTertiary)),
           ],
         ),
@@ -319,15 +325,17 @@ class _AddBillPageState extends State<AddBillPage> {
                           color: AppColors.error,
                           text: 'Couldn\'t read the bill: $_prefillError\nYou can still type it in below.',
                         ),
-                      if (widget.prefill != null && _prefillError == null)
+                      if (widget.prefill != null && _prefillError == null && widget.editBillId == null)
                         _Banner(
                           color: _unclear.isNotEmpty ? AppColors.warning : AppColors.accent,
                           text: [
                             _rawText != null
-                                ? 'Read from the photo on this phone: ${_items.where((i) => i.description.text.trim().isNotEmpty).length} items found.'
+                                ? 'Read on this device: ${_items.where((i) => i.description.text.trim().isNotEmpty).length} items found.'
                                 : 'Filled by AI.',
                             if (_unclear.isNotEmpty) 'Items marked "Check this" were hard to read.',
                             'Check every field before saving.',
+                            if (_rawText != null && _items.every((i) => i.description.text.trim().isEmpty))
+                              "This bill's layout isn't recognised; AI-fill can read other sellers' bills.",
                             if (_rawText != null) 'Copy anything missing from the text below.',
                           ].join(' '),
                         ),
